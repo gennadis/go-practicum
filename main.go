@@ -14,4 +14,10 @@ func main() {
 		log.Fatal(err)
 	}
 	fmt.Println(currentTime)
+
+	now := time.Now()
+
+	fmt.Println("Is", now, "before", currentTime, "? Answer:", now.Before(currentTime))
+	fmt.Println("Is", now, "after", currentTime, "? Answer:", now.After(currentTime))
+	fmt.Println("Is", now, "equal", currentTime, "? Answer:", now.Equal(currentTime))
 }
