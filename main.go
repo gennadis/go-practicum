@@ -5,12 +5,12 @@ import (
 	"time"
 )
 
-// Андрей родился 26 ноября 1993 года.
-// Посчитайте количество дней до его 100-летия — относительно сегодняшнего дня.
-
 func main() {
-	birthday := time.Date(2093, time.November, 26, 0, 0, 0, 0, time.Local)
-	duration := time.Until(birthday)
-	days := int(duration.Hours()) / 24
-	fmt.Println(days)
+	start := time.Now()
+	ticker := time.NewTicker(2 * time.Second)
+	for i := 0; i < 10; i++ {
+		t := <-ticker.C
+		res := t.Sub(start).Seconds()
+		fmt.Println(int(res))
+	}
 }
