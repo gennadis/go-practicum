@@ -6,7 +6,18 @@ import (
 	"time"
 )
 
+const (
+	waitDur    = 1 * time.Second
+	cancelDur  = 2000 * time.Millisecond
+	timeoutDur = 500 * time.Millisecond
+)
+
+type Config struct {
+	SelectTimeout time.Duration
+}
+
 type DB struct {
+	cfg Config
 }
 
 type User struct {
@@ -14,12 +25,15 @@ type User struct {
 }
 
 func (d *DB) SelectUser(ctx context.Context, email string) (User, error) {
-	timer := time.NewTimer(1 * time.Second)
+	ctx2, cancel := context.WithTimeout(ctx, d.cfg.SelectTimeout)
+	defer cancel()
+
+	timer := time.NewTimer(waitDur)
 	select {
 	case <-timer.C:
 		return User{Name: "Gosha"}, nil
-	case <-ctx.Done():
-		return User{}, fmt.Errorf("context canceled")
+	case <-ctx2.Done():
+		return User{}, ctx2.Err()
 	}
 }
 
@@ -40,17 +54,17 @@ func (h *Handler) HandleAPI(ctx context.Context, req Request) (Response, error) 
 	if err != nil {
 		return Response{}, err
 	}
+
 	return Response{User: u}, nil
 }
 
 func main() {
-	db := DB{}
+	cfg := Config{SelectTimeout: timeoutDur}
+	db := DB{cfg: cfg}
 	handler := Handler{db: &db}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	time.AfterFunc(2000*time.Millisecond, cancel)
-	// когда запустите код и он отработает успешно,
-	// попробуйте заменить длительность на 2000 миллисекунд
+	time.AfterFunc(cancelDur, cancel)
 
 	req := Request{Email: "test@yandex.ru"}
 	resp, err := handler.HandleAPI(ctx, req)
