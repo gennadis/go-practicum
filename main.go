@@ -40,7 +40,6 @@ func (h *Handler) HandleAPI(ctx context.Context, req Request) (Response, error) 
 	if err != nil {
 		return Response{}, err
 	}
-
 	return Response{User: u}, nil
 }
 
