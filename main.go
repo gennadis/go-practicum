@@ -28,18 +28,12 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-
-	contentType := response.Header.Get("content-type")
-
-	defer response.Body.Close()
+	fmt.Println(response.StatusCode)
 
 	requestDump, err := httputil.DumpRequest(request, true)
 	if err != nil {
 		fmt.Println(err.Error())
 	}
 	fmt.Println(string(requestDump))
-
-	fmt.Println(response.Status)
-	fmt.Println(contentType)
 
 }
