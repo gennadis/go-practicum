@@ -1,9 +1,8 @@
 name: golangci-lint
+
 on:
   pull_request:
   push:
-    branches:
-      - main
 
 permissions:
   contents: read
@@ -41,11 +40,11 @@ jobs:
 
           # Optional: if set to true, then all caching functionality will be completely disabled,
           #           takes precedence over all other caching options.
-          # skip-cache: true
+          skip-cache: true
 
           # Optional: if set to true, caches will not be saved, but they may still be restored,
           #           subject to other options
-          # skip-save-cache: true
+          skip-save-cache: true
 
           # Optional: The mode to install golangci-lint. It can be 'binary' or 'goinstall'.
           # install-mode: "goinstall"

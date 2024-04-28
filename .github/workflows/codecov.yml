@@ -1,8 +1,10 @@
-name: Go
-on: [push]
+name: autotests
+
+on:
+  push:
 
 jobs:
-  test:
+  autotests:
     runs-on: ubuntu-latest
 
     steps:

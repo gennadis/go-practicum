@@ -1,4 +1,4 @@
-name: autotests
+name: yandex-autotests
 
 on:
   pull_request:
