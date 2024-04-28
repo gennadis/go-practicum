@@ -47,7 +47,11 @@ func (a *App) shorten(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("original url: %s", url)
 
-	s := slug.Generate(slugLen)
+	s, err := slug.Generate(slugLen)
+	if err != nil {
+		http.Error(w, "failed to generate short URL", http.StatusInternalServerError)
+		return
+	}
 	shortURL := fmt.Sprintf("http://127.0.0.1:8080/%s", s)
 	log.Printf("shortened url: %s", shortURL)
 
