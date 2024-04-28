@@ -11,7 +11,9 @@ import (
 
 const slugLen = 6
 
-type App struct{}
+type App struct {
+	Storage map[string]string
+}
 
 func (a *App) Run() error {
 	http.HandleFunc("/", a.Mux)
@@ -41,6 +43,9 @@ func (a *App) shorten(w http.ResponseWriter, r *http.Request) {
 	_slug := slug.Generate(slugLen)
 	shortURL := fmt.Sprintf("http://127.0.0.1:8080/%s", _slug)
 	log.Printf("shortened url: %s", shortURL)
+
+	a.Storage[_slug] = string(url)
+	log.Println(a.Storage)
 
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "text/plain")

@@ -7,7 +7,8 @@ import (
 )
 
 func main() {
-	shortener := app.App{}
+	storage := make(map[string]string)
+	shortener := app.App{Storage: storage}
 	if err := shortener.Run(); err != nil {
 		log.Println(err)
 	}
