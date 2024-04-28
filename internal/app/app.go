@@ -29,6 +29,7 @@ func (a *App) Mux(w http.ResponseWriter, r *http.Request) {
 		a.shorten(w, r)
 	default:
 		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 }
 
@@ -36,7 +37,7 @@ func (a *App) shorten(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	url, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "failed to read request body", http.StatusInternalServerError)
+		http.Error(w, "invalid request body", http.StatusInternalServerError)
 	}
 	log.Printf("original url: %s", url)
 
@@ -45,7 +46,7 @@ func (a *App) shorten(w http.ResponseWriter, r *http.Request) {
 	log.Printf("shortened url: %s", shortURL)
 
 	a.Storage[_slug] = string(url)
-	log.Println(a.Storage)
+	log.Printf("storage: %s", a.Storage)
 
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "text/plain")
@@ -56,5 +57,12 @@ func (a *App) shorten(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) expand(w http.ResponseWriter, r *http.Request) {
-	// To be implemented
+	slug := r.URL.Path[1:]
+	originalURL, ok := a.Storage[slug]
+	if !ok {
+		http.Error(w, "slug not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Location", originalURL)
+	w.WriteHeader(http.StatusTemporaryRedirect)
 }
