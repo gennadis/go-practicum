@@ -14,19 +14,18 @@ func (a *App) Run() error {
 }
 
 func (a *App) Mux(w http.ResponseWriter, r *http.Request) {
+	log.Printf("%s method requested by %s", r.Method, r.RemoteAddr)
 	switch r.Method {
 	case http.MethodGet:
 		a.expand(w, r)
 	case http.MethodPost:
 		a.shorten(w, r)
 	default:
-		log.Println("Unknown method requested", r.RemoteAddr)
+		w.WriteHeader(http.StatusBadRequest)
 	}
 }
 
 func (a *App) shorten(w http.ResponseWriter, r *http.Request) {
-	log.Println("GET method requested", r.RemoteAddr)
-
 	defer r.Body.Close()
 	url, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -40,7 +39,6 @@ func (a *App) shorten(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) expand(w http.ResponseWriter, r *http.Request) {
-	log.Println("POST method requested", w, r.RemoteAddr)
 }
 
 func createHash(url string) string {
