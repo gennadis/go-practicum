@@ -1,10 +1,15 @@
 package app
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/gennadis/shorturl/internal/slug"
 )
+
+const slugLen = 6
 
 type App struct{}
 
@@ -29,19 +34,22 @@ func (a *App) shorten(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	url, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Fatalln("error")
+		http.Error(w, "failed to read request body", http.StatusInternalServerError)
 	}
+	log.Printf("original url: %s", url)
 
-	hash := createHash(string(url))
+	_slug := slug.Generate(slugLen)
+	shortURL := fmt.Sprintf("http://127.0.0.1:8080/%s", _slug)
+	log.Printf("shortened url: %s", shortURL)
+
 	w.WriteHeader(http.StatusCreated)
-	w.Header().Add("Content-Type", "text/plain")
-	w.Write([]byte(hash))
+	w.Header().Set("Content-Type", "text/plain")
+	_, err = w.Write([]byte(shortURL))
+	if err != nil {
+		log.Println("error writing response:", err)
+	}
 }
 
 func (a *App) expand(w http.ResponseWriter, r *http.Request) {
-}
-
-func createHash(url string) string {
-	log.Printf("original url %s", url)
-	return "shortUrl"
+	// To be implemented
 }
