@@ -21,7 +21,7 @@ func (a *App) Run() error {
 }
 
 func (a *App) Mux(w http.ResponseWriter, r *http.Request) {
-	log.Printf("%s method requested by %s", r.Method, r.RemoteAddr)
+	log.Printf("%s %s method requested by %s", r.Method, r.RequestURI, r.RemoteAddr)
 	switch r.Method {
 	case http.MethodGet:
 		a.expand(w, r)
@@ -58,11 +58,14 @@ func (a *App) shorten(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) expand(w http.ResponseWriter, r *http.Request) {
 	slug := r.URL.Path[1:]
+	log.Printf("originalURL for slug %s requested", slug)
 	originalURL, ok := a.Storage[slug]
 	if !ok {
+		log.Printf("slug %s not found", slug)
 		http.Error(w, "slug not found", http.StatusNotFound)
 		return
 	}
+	log.Printf("originalURL for slug %s found: %s", a.Storage, originalURL)
 	w.Header().Set("Location", originalURL)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
