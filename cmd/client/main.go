@@ -58,6 +58,9 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	// Print the Content-Type header
+	fmt.Println("Content-Type:", response.Header.Get("Content-Type"))
+
 	// Print the response body
 	fmt.Println(string(body))
 }
