@@ -34,6 +34,8 @@ func (a *App) shorten(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hash := createHash(string(url))
+	w.WriteHeader(http.StatusCreated)
+	w.Header().Add("Content-Type", "text/plain")
 	w.Write([]byte(hash))
 }
 
