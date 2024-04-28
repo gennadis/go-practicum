@@ -9,7 +9,10 @@ import (
 	"github.com/gennadis/shorturl/internal/slug"
 )
 
-const slugLen = 6
+const (
+	slugLen    = 6
+	listenPort = ":8080"
+)
 
 type App struct {
 	Storage map[string]string
@@ -17,7 +20,7 @@ type App struct {
 
 func (a *App) Run() error {
 	http.HandleFunc("/", a.Mux)
-	return http.ListenAndServe(":8080", nil)
+	return http.ListenAndServe(listenPort, nil)
 }
 
 func (a *App) Mux(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +32,6 @@ func (a *App) Mux(w http.ResponseWriter, r *http.Request) {
 		a.shorten(w, r)
 	default:
 		w.WriteHeader(http.StatusBadRequest)
-		return
 	}
 }
 
@@ -39,14 +41,17 @@ func (a *App) shorten(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "invalid request body", http.StatusInternalServerError)
 	}
+	if string(url) == "" {
+		http.Error(w, "url parameter is required", http.StatusBadRequest)
+		return
+	}
 	log.Printf("original url: %s", url)
 
-	_slug := slug.Generate(slugLen)
-	shortURL := fmt.Sprintf("http://127.0.0.1:8080/%s", _slug)
+	s := slug.Generate(slugLen)
+	shortURL := fmt.Sprintf("http://127.0.0.1:8080/%s", s)
 	log.Printf("shortened url: %s", shortURL)
 
-	a.Storage[_slug] = string(url)
-	log.Printf("storage: %s", a.Storage)
+	a.Storage[s] = string(url)
 
 	w.WriteHeader(http.StatusCreated)
 	w.Header().Set("Content-Type", "text/plain")
@@ -57,15 +62,16 @@ func (a *App) shorten(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) expand(w http.ResponseWriter, r *http.Request) {
-	slug := r.URL.Path[1:]
-	log.Printf("originalURL for slug %s requested", slug)
-	originalURL, ok := a.Storage[slug]
+	s := r.URL.Path[1:]
+	log.Printf("originalURL for slug %s requested", s)
+
+	originalURL, ok := a.Storage[s]
 	if !ok {
-		log.Printf("slug %s not found", slug)
-		http.Error(w, "slug not found", http.StatusNotFound)
+		log.Printf("slug %s not found", s)
+		http.NotFound(w, r)
 		return
 	}
 	log.Printf("originalURL for slug %s found: %s", a.Storage, originalURL)
-	w.Header().Set("Location", originalURL)
-	w.WriteHeader(http.StatusTemporaryRedirect)
+
+	http.Redirect(w, r, originalURL, http.StatusTemporaryRedirect)
 }
