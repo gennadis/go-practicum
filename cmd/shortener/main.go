@@ -1,12 +1,14 @@
 package main
 
 import (
-	"net/http"
+	"log"
 
 	"github.com/gennadis/shorturl/internal/app"
 )
 
 func main() {
-	http.HandleFunc("/", app.Mux)
-	http.ListenAndServe(":8080", nil)
+	shortener := app.App{}
+	if err := shortener.Run(); err != nil {
+		log.Println(err)
+	}
 }
