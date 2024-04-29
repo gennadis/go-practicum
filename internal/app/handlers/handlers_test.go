@@ -82,7 +82,9 @@ func TestGetHandler(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := memstore.New()
-			memStorage.Write("abc123", "https://example.com")
+			if err := memStorage.Write("abc123", "https://example.com"); err != nil {
+				t.Fatalf("memstore write error")
+			}
 			handler := RequestHandler(memStorage)
 
 			req, err := http.NewRequest("GET", "/"+tc.slug, nil)

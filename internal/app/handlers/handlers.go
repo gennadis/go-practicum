@@ -48,7 +48,7 @@ func postHandler(w http.ResponseWriter, r *http.Request, storage storage.Reposit
 
 	if err := storage.Write(slug, string(originalURL)); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		log.Printf(err.Error())
+		log.Print(err.Error())
 		return
 	}
 
@@ -67,7 +67,7 @@ func getHandler(w http.ResponseWriter, r *http.Request, storage storage.Reposito
 	originalURL, err := storage.Read(slug)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		log.Printf(err.Error())
+		log.Print(err.Error())
 		return
 	}
 	log.Printf("originalURL for slug %s found: %s", slug, originalURL)
