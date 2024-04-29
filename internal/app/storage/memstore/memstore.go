@@ -5,8 +5,8 @@ import (
 )
 
 var (
-	ErrorUnknownSlugProvided        = errors.New("unknown slug provided")
-	ErrorOriginalURLIsEmptyProvided = errors.New("original URL is empty")
+	ErrorUnknownSlugProvided = errors.New("unknown slug provided")
+	ErrorEmptySlugProvided   = errors.New("empty slug provided")
 )
 
 type MemStore struct {
@@ -29,7 +29,7 @@ func (m *MemStore) Read(key string) (string, error) {
 
 func (m *MemStore) Write(key string, value string) error {
 	if key == "" {
-		return ErrorOriginalURLIsEmptyProvided
+		return ErrorEmptySlugProvided
 	}
 	m.data[key] = value
 	return nil
