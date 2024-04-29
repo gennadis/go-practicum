@@ -3,13 +3,13 @@ package main
 import (
 	"log"
 
-	"github.com/gennadis/shorturl/internal/app"
-	"github.com/gennadis/shorturl/internal/storage/memstore"
+	"github.com/gennadis/shorturl/internal/app/server"
+	"github.com/gennadis/shorturl/internal/app/storage/memstore"
 )
 
 func main() {
-	storage := memstore.New()
-	shortener := app.App{Storage: storage}
+	memStorage := memstore.New()
+	shortener := server.Server{Storage: memStorage}
 	if err := shortener.Run(); err != nil {
 		log.Println(err)
 	}
