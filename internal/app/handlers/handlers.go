@@ -66,5 +66,6 @@ func getHandler(w http.ResponseWriter, r *http.Request, storage storage.Reposito
 	}
 	log.Printf("originalURL for slug %s found: %s", slug, originalURL)
 
-	http.Redirect(w, r, originalURL, http.StatusTemporaryRedirect)
+	w.Header().Set("Location", originalURL)
+	w.WriteHeader(http.StatusTemporaryRedirect)
 }
