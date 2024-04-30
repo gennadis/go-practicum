@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,12 +11,22 @@ import (
 	"github.com/gennadis/shorturl/internal/app/storage"
 )
 
+const (
+	JSONContentType      = "application/json"
+	PlainTextContentType = "text/plain; charset=utf-8"
+)
+
 var (
 	ErrorMissingURLParameter = errors.New("url parameter is required")
 	ErrorInvalidRequest      = errors.New("bad request")
 )
 
-const PlainTextContentType = "text/plain; charset=utf-8"
+type CreateURLAPIRequest struct {
+	URL string `json:"url"`
+}
+type CreateURLAPIResponse struct {
+	Result string `json:"result"`
+}
 
 func HandleShortenURL(storage storage.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -42,6 +53,54 @@ func HandleShortenURL(storage storage.Repository) http.HandlerFunc {
 		w.Header().Set("Content-Type", PlainTextContentType)
 		w.WriteHeader(http.StatusCreated)
 		_, err = w.Write([]byte(shortURL))
+		if err != nil {
+			log.Println("error writing response:", err)
+		}
+	}
+}
+
+func HandleAPIShortenURL(storage storage.Repository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+
+		var apiRequest CreateURLAPIRequest
+		if err := json.Unmarshal(data, &apiRequest); err != nil {
+			log.Printf("cannot unmarshal request data %s", data)
+			http.Error(w, "cannot unmarshal request data", http.StatusBadRequest)
+			return
+		}
+
+		if apiRequest.URL == "" {
+			http.Error(w, ErrorMissingURLParameter.Error(), http.StatusBadRequest)
+			return
+		}
+
+		slug := GenerateSlug()
+		shortURL := fmt.Sprintf("http://127.0.0.1:8080/%s", slug)
+		log.Printf("original url %s, shortened url: %s", apiRequest.URL, shortURL)
+
+		if err := storage.Write(slug, string(apiRequest.URL)); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			log.Print(err.Error())
+			return
+		}
+
+		var response CreateURLAPIResponse
+		response.Result = shortURL
+		responseJson, err := json.Marshal(response)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Printf("cannot marshal response %s", response)
+			return
+		}
+
+		w.Header().Set("Content-Type", JSONContentType)
+		w.WriteHeader(http.StatusCreated)
+		_, err = w.Write(responseJson)
 		if err != nil {
 			log.Println("error writing response:", err)
 		}
