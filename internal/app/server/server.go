@@ -24,12 +24,12 @@ func New(storage storage.Repository, config config.Config) *Server {
 }
 
 func (s *Server) MountHandlers() {
-	reqHandler := handlers.NewRequestHandler(&s.Storage)
+	reqHandler := handlers.NewRequestHandler(s.Storage)
 
 	s.Router.Use(middleware.Logger)
 
 	s.Router.Get("/{slug}", reqHandler.HandleExpandURL)
 	s.Router.Post("/", reqHandler.HandleShortenURL)
 	s.Router.Post("/api/shorten", reqHandler.HandleJSONShortenURL)
-	s.Router.NotFound(handlers.HandleNotFound)
+	s.Router.NotFound(reqHandler.HandleNotFound)
 }

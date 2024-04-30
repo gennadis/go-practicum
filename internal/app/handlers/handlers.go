@@ -32,8 +32,8 @@ type RequestHandler struct {
 	storage storage.Repository
 }
 
-func NewRequestHandler(storage *storage.Repository) *RequestHandler {
-	return &RequestHandler{storage: *storage}
+func NewRequestHandler(storage storage.Repository) *RequestHandler {
+	return &RequestHandler{storage: storage}
 }
 
 func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Request) {
@@ -129,6 +129,6 @@ func (rh *RequestHandler) HandleExpandURL(w http.ResponseWriter, r *http.Request
 
 }
 
-func HandleNotFound(w http.ResponseWriter, r *http.Request) {
+func (rh *RequestHandler) HandleNotFound(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, ErrorInvalidRequest.Error(), http.StatusBadRequest)
 }
