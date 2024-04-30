@@ -62,37 +62,37 @@ func HandleShortenURL(storage storage.Repository) http.HandlerFunc {
 func HandleJSONShortenURL(storage storage.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		data, err := io.ReadAll(r.Body)
+		reqBody, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		var apiRequest ShortenURLRequest
-		if err := json.Unmarshal(data, &apiRequest); err != nil {
+		var shortenReq ShortenURLRequest
+		if err := json.Unmarshal(reqBody, &shortenReq); err != nil {
 			http.Error(w, ErrorInvalidRequest.Error(), http.StatusBadRequest)
 			log.Println("error unmarshaling request data:", err)
 			return
 		}
 
-		if apiRequest.URL == "" {
+		if shortenReq.URL == "" {
 			http.Error(w, ErrorMissingURLParameter.Error(), http.StatusBadRequest)
 			return
 		}
 
 		slug := GenerateSlug()
 		shortURL := fmt.Sprintf("http://127.0.0.1:8080/%s", slug)
-		log.Printf("original url %s, shortened url: %s", apiRequest.URL, shortURL)
+		log.Printf("original url %s, shortened url: %s", shortenReq.URL, shortURL)
 
-		if err := storage.Write(slug, string(apiRequest.URL)); err != nil {
+		if err := storage.Write(slug, string(shortenReq.URL)); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			log.Println("error writing to storage:", err)
 			return
 		}
 
-		var response ShortenURLResponse
-		response.Result = shortURL
-		responseJson, err := json.Marshal(response)
+		var resp ShortenURLResponse
+		resp.Result = shortURL
+		respJSON, err := json.Marshal(resp)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			log.Println("error marshaling response:", err)
@@ -101,7 +101,7 @@ func HandleJSONShortenURL(storage storage.Repository) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", JSONContentType)
 		w.WriteHeader(http.StatusCreated)
-		if _, err := w.Write(responseJson); err != nil {
+		if _, err := w.Write(respJSON); err != nil {
 			log.Println("error writing response:", err)
 			return
 		}
