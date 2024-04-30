@@ -9,10 +9,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	// "github.com/gennadis/shorturl/internal/app/server"
 	"github.com/gennadis/shorturl/internal/app/storage/memstore"
 )
 
-func TestPostHandler(t *testing.T) {
+func TestHandleShortenURL(t *testing.T) {
 	tests := []struct {
 		name                string
 		requestBody         string
@@ -38,7 +39,7 @@ func TestPostHandler(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := memstore.New()
-			handler := RequestHandler(memStorage)
+			handler := HandleShortenURL(memStorage)
 
 			body := bytes.NewBufferString(tc.requestBody)
 			req, err := http.NewRequest("POST", "/", body)
@@ -62,7 +63,7 @@ func TestPostHandler(t *testing.T) {
 	}
 }
 
-func TestGetHandler(t *testing.T) {
+func TestHandleExpandURL(t *testing.T) {
 	tests := []struct {
 		name           string
 		slug           string
@@ -85,7 +86,7 @@ func TestGetHandler(t *testing.T) {
 			if err := memStorage.Write("abc123", "https://example.com"); err != nil {
 				t.Fatalf("memstore write error")
 			}
-			handler := RequestHandler(memStorage)
+			handler := HandleExpandURL(memStorage)
 
 			req, err := http.NewRequest("GET", "/"+tc.slug, nil)
 			assert.NoError(t, err)
@@ -126,8 +127,7 @@ func TestDefaultHandler(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			memStorage := memstore.New()
-			handler := RequestHandler(memStorage)
+			handler := HandleNotFound()
 
 			req, err := http.NewRequest(tc.method, "/", nil)
 			assert.NoError(t, err)
