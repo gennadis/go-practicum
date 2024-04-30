@@ -13,6 +13,10 @@ import (
 	"github.com/gennadis/shorturl/internal/app/storage/memstore"
 )
 
+const (
+	baseURL = "http://localhost:8080"
+)
+
 func TestHandleShortenURL(t *testing.T) {
 	tests := []struct {
 		name                string
@@ -25,7 +29,7 @@ func TestHandleShortenURL(t *testing.T) {
 			name:                "ValidRequest",
 			requestBody:         "https://example.com",
 			expectedStatus:      http.StatusCreated,
-			expectedBody:        "http://127.0.0.1:8080/", // plus the slug
+			expectedBody:        baseURL + "/", // plus the slug
 			expectedContentType: PlainTextContentType,
 		},
 		{
@@ -39,14 +43,14 @@ func TestHandleShortenURL(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := memstore.New()
-			handler := HandleShortenURL(memStorage)
+			handler := NewRequestHandler(memStorage, baseURL)
 
 			body := bytes.NewBufferString(tc.requestBody)
 			req, err := http.NewRequest("POST", "/", body)
 			assert.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
-			handler.ServeHTTP(recorder, req)
+			handler.HandleShortenURL(recorder, req)
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
 			assert.Contains(t, recorder.Body.String(), tc.expectedBody)
@@ -55,7 +59,7 @@ func TestHandleShortenURL(t *testing.T) {
 			if tc.expectedStatus == http.StatusCreated {
 				shortURL := recorder.Body.String()
 				// Extracting slug from short URL
-				slug := strings.TrimPrefix(shortURL, "http://127.0.0.1:8080/")
+				slug := strings.TrimPrefix(shortURL, baseURL+"/")
 				assert.NotEmpty(t, slug, "slug should not be empty")
 				assert.Len(t, slug, slugLen, "slug length should be equal to slugLen const")
 			}
@@ -109,14 +113,14 @@ func TestHandleJSONShortenURL(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := memstore.New()
-			handler := HandleJSONShortenURL(memStorage)
+			handler := NewRequestHandler(memStorage, baseURL)
 
 			body := bytes.NewBufferString(tc.requestBody)
 			req, err := http.NewRequest("POST", "/api/shorten", body)
 			assert.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
-			handler.ServeHTTP(recorder, req)
+			handler.HandleJSONShortenURL(recorder, req)
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
 			assert.Equal(t, tc.expectedContentType, recorder.Header().Get("Content-Type"))
@@ -126,7 +130,7 @@ func TestHandleJSONShortenURL(t *testing.T) {
 				err := json.Unmarshal(recorder.Body.Bytes(), &response)
 				assert.NoError(t, err)
 				assert.NotEmpty(t, response.Result)
-				assert.True(t, strings.HasPrefix(response.Result, "http://127.0.0.1:8080/"))
+				assert.True(t, strings.HasPrefix(response.Result, baseURL+"/"))
 			} else {
 				assert.Contains(t, recorder.Body.String(), tc.expectedBody)
 			}
@@ -157,13 +161,13 @@ func TestHandleExpandURL(t *testing.T) {
 			if err := memStorage.Write("abc123", "https://example.com"); err != nil {
 				t.Fatalf("memstore write error")
 			}
-			handler := HandleExpandURL(memStorage)
+			handler := NewRequestHandler(memStorage, baseURL)
 
 			req, err := http.NewRequest("GET", "/"+tc.slug, nil)
 			assert.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
-			handler.ServeHTTP(recorder, req)
+			handler.HandleExpandURL(recorder, req)
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
 
@@ -198,13 +202,14 @@ func TestDefaultHandler(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			handler := HandleNotFound()
+			memStorage := memstore.New()
+			handler := NewRequestHandler(memStorage, baseURL)
 
 			req, err := http.NewRequest(tc.method, "/", nil)
 			assert.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
-			handler.ServeHTTP(recorder, req)
+			handler.HandleNotFound(recorder, req)
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
 			assert.Equal(t, strings.TrimSpace(ErrorInvalidRequest.Error()), strings.TrimSpace(recorder.Body.String()))
