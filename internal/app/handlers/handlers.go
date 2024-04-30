@@ -59,7 +59,7 @@ func HandleShortenURL(storage storage.Repository) http.HandlerFunc {
 	}
 }
 
-func HandleAPIShortenURL(storage storage.Repository) http.HandlerFunc {
+func HandleJSONShortenURL(storage storage.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		data, err := io.ReadAll(r.Body)
