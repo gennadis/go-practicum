@@ -1,6 +1,13 @@
 package config
 
-import "os"
+import (
+	"os"
+)
+
+const (
+	defaultServerAddr = "127.0.0.1:8080"
+	defaultBaseURL    = "127.0.0.1:8080"
+)
 
 type Config struct {
 	ServerAddr string
@@ -8,9 +15,16 @@ type Config struct {
 }
 
 func SetConfig() Config {
-	config := Config{
-		ServerAddr: os.Getenv("SERVER_ADDRESS"),
-		BaseURL:    os.Getenv("BASE_URL"),
+	return Config{
+		ServerAddr: getEnvOrDefault("SERVER_ADDRESS", defaultServerAddr),
+		BaseURL:    getEnvOrDefault("BASE_URL", defaultBaseURL),
 	}
-	return config
+}
+
+func getEnvOrDefault(key, defaultValue string) string {
+	value, ok := os.LookupEnv(key)
+	if !ok {
+		return defaultValue
+	}
+	return value
 }
