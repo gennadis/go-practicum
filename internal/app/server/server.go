@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/gennadis/shorturl/internal/app/config"
 	"github.com/gennadis/shorturl/internal/app/handlers"
 	"github.com/gennadis/shorturl/internal/app/storage"
 	"github.com/go-chi/chi/v5"
@@ -10,21 +11,25 @@ import (
 type Server struct {
 	Storage storage.Repository
 	Router  *chi.Mux
+	Config  config.Config
 }
 
-func New(storage storage.Repository) *Server {
+func New(storage storage.Repository, config config.Config) *Server {
 	s := &Server{
 		Storage: storage,
 		Router:  chi.NewRouter(),
+		// Config:  config,
 	}
 	return s
 }
 
 func (s *Server) MountHandlers() {
+	reqHandler := handlers.NewRequestHandler(&s.Storage)
+
 	s.Router.Use(middleware.Logger)
 
-	s.Router.Get("/{slug}", handlers.HandleExpandURL(s.Storage))
-	s.Router.Post("/", handlers.HandleShortenURL(s.Storage))
-	s.Router.Post("/api/shorten", handlers.HandleJSONShortenURL(s.Storage))
-	s.Router.NotFound(handlers.HandleNotFound())
+	s.Router.Get("/{slug}", reqHandler.HandleExpandURL)
+	s.Router.Post("/", reqHandler.HandleShortenURL)
+	s.Router.Post("/api/shorten", reqHandler.HandleJSONShortenURL)
+	s.Router.NotFound(handlers.HandleNotFound)
 }
