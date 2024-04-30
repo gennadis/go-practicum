@@ -85,6 +85,13 @@ func TestHandleJSONShortenURL(t *testing.T) {
 			expectedContentType: PlainTextContentType,
 		},
 		{
+			name:                "UnmarshalRequestBodyError",
+			requestBody:         "{invalid_json}",
+			expectedStatus:      http.StatusBadRequest,
+			expectedBody:        ErrorInvalidRequest.Error(),
+			expectedContentType: PlainTextContentType,
+		},
+		{
 			name:                "MissingURLParameter",
 			requestBody:         `{"test": "test"}`,
 			expectedStatus:      http.StatusBadRequest,
