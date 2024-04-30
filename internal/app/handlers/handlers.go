@@ -21,10 +21,10 @@ var (
 	ErrorInvalidRequest      = errors.New("bad request")
 )
 
-type CreateURLAPIRequest struct {
+type ShortenURLRequest struct {
 	URL string `json:"url"`
 }
-type CreateURLAPIResponse struct {
+type ShortenURLResponse struct {
 	Result string `json:"result"`
 }
 
@@ -65,12 +65,13 @@ func HandleAPIShortenURL(storage storage.Repository) http.HandlerFunc {
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 
-		var apiRequest CreateURLAPIRequest
+		var apiRequest ShortenURLRequest
 		if err := json.Unmarshal(data, &apiRequest); err != nil {
-			log.Printf("cannot unmarshal request data %s", data)
-			http.Error(w, "cannot unmarshal request data", http.StatusBadRequest)
+			http.Error(w, ErrorInvalidRequest.Error(), http.StatusBadRequest)
+			log.Println("error unmarshaling request data:", err)
 			return
 		}
 
@@ -84,25 +85,25 @@ func HandleAPIShortenURL(storage storage.Repository) http.HandlerFunc {
 		log.Printf("original url %s, shortened url: %s", apiRequest.URL, shortURL)
 
 		if err := storage.Write(slug, string(apiRequest.URL)); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			log.Print(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Println("error writing to storage:", err)
 			return
 		}
 
-		var response CreateURLAPIResponse
+		var response ShortenURLResponse
 		response.Result = shortURL
 		responseJson, err := json.Marshal(response)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
-			log.Printf("cannot marshal response %s", response)
+			log.Println("error marshaling response:", err)
 			return
 		}
 
 		w.Header().Set("Content-Type", JSONContentType)
 		w.WriteHeader(http.StatusCreated)
-		_, err = w.Write(responseJson)
-		if err != nil {
+		if _, err := w.Write(responseJson); err != nil {
 			log.Println("error writing response:", err)
+			return
 		}
 	}
 }
