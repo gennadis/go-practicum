@@ -25,5 +25,6 @@ func (s *Server) MountHandlers() {
 
 	s.Router.Get("/{slug}", handlers.HandleExpandURL(s.Storage))
 	s.Router.Post("/", handlers.HandleShortenURL(s.Storage))
+	s.Router.Post("/api/shorten", handlers.HandleJSONShortenURL(s.Storage))
 	s.Router.NotFound(handlers.HandleNotFound())
 }

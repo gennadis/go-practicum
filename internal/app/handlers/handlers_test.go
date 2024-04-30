@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -57,6 +58,77 @@ func TestHandleShortenURL(t *testing.T) {
 				slug := strings.TrimPrefix(shortURL, "http://127.0.0.1:8080/")
 				assert.NotEmpty(t, slug, "slug should not be empty")
 				assert.Len(t, slug, slugLen, "slug length should be equal to slugLen const")
+			}
+		})
+	}
+}
+
+func TestHandleJSONShortenURL(t *testing.T) {
+	tests := []struct {
+		name                string
+		requestBody         string
+		expectedStatus      int
+		expectedBody        string
+		expectedContentType string
+	}{
+		{
+			name:                "ValidRequest",
+			requestBody:         `{"url": "https://example.com"}`,
+			expectedStatus:      http.StatusCreated,
+			expectedContentType: JSONContentType,
+		},
+		{
+			name:                "EmptyBodyRequest",
+			requestBody:         `{}`,
+			expectedStatus:      http.StatusBadRequest,
+			expectedBody:        ErrorMissingURLParameter.Error(),
+			expectedContentType: PlainTextContentType,
+		},
+		{
+			name:                "UnmarshalRequestBodyError",
+			requestBody:         "{invalid_json}",
+			expectedStatus:      http.StatusBadRequest,
+			expectedBody:        ErrorInvalidRequest.Error(),
+			expectedContentType: PlainTextContentType,
+		},
+		{
+			name:                "MissingURLParameter",
+			requestBody:         `{"test": "test"}`,
+			expectedStatus:      http.StatusBadRequest,
+			expectedBody:        ErrorMissingURLParameter.Error(),
+			expectedContentType: PlainTextContentType,
+		},
+		{
+			name:                "EmptyBodyRequest",
+			requestBody:         "",
+			expectedStatus:      http.StatusBadRequest,
+			expectedBody:        ErrorInvalidRequest.Error(),
+			expectedContentType: PlainTextContentType,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			memStorage := memstore.New()
+			handler := HandleJSONShortenURL(memStorage)
+
+			body := bytes.NewBufferString(tc.requestBody)
+			req, err := http.NewRequest("POST", "/api/shorten", body)
+			assert.NoError(t, err)
+
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, req)
+
+			assert.Equal(t, tc.expectedStatus, recorder.Code)
+			assert.Equal(t, tc.expectedContentType, recorder.Header().Get("Content-Type"))
+
+			if tc.expectedStatus == http.StatusCreated {
+				var response ShortenURLResponse
+				err := json.Unmarshal(recorder.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.NotEmpty(t, response.Result)
+				assert.True(t, strings.HasPrefix(response.Result, "http://127.0.0.1:8080/"))
+			} else {
+				assert.Contains(t, recorder.Body.String(), tc.expectedBody)
 			}
 		})
 	}
