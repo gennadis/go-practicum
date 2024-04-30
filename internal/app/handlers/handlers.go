@@ -52,7 +52,7 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 	}
 
 	slug := GenerateSlug()
-	shortURL := rh.baseURL + "/" + slug
+	shortURL := rh.baseURL + slug
 	log.Printf("original url %s, shortened url: %s", originalURL, shortURL)
 
 	if err := rh.storage.Write(slug, string(originalURL)); err != nil {
@@ -89,7 +89,7 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 	}
 
 	slug := GenerateSlug()
-	shortURL := rh.baseURL + "/" + slug
+	shortURL := rh.baseURL + slug
 	log.Printf("original url %s, shortened url: %s", shortenReq.URL, shortURL)
 
 	if err := rh.storage.Write(slug, string(shortenReq.URL)); err != nil {
