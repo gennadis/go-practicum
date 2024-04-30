@@ -30,10 +30,14 @@ type ShortenURLResponse struct {
 
 type RequestHandler struct {
 	storage storage.Repository
+	baseURL string
 }
 
-func NewRequestHandler(storage storage.Repository) *RequestHandler {
-	return &RequestHandler{storage: storage}
+func NewRequestHandler(storage storage.Repository, baseURL string) *RequestHandler {
+	return &RequestHandler{
+		storage: storage,
+		baseURL: baseURL,
+	}
 }
 
 func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Request) {

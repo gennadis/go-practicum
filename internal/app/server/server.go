@@ -18,13 +18,13 @@ func New(storage storage.Repository, config config.Config) *Server {
 	s := &Server{
 		Storage: storage,
 		Router:  chi.NewRouter(),
-		// Config:  config,
+		Config:  config,
 	}
 	return s
 }
 
 func (s *Server) MountHandlers() {
-	reqHandler := handlers.NewRequestHandler(s.Storage)
+	reqHandler := handlers.NewRequestHandler(s.Storage, s.Config.BaseURL)
 
 	s.Router.Use(middleware.Logger)
 

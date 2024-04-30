@@ -13,6 +13,10 @@ import (
 	"github.com/gennadis/shorturl/internal/app/storage/memstore"
 )
 
+const (
+	BASE_URL = "http://127.0.0.1:8080"
+)
+
 func TestHandleShortenURL(t *testing.T) {
 	tests := []struct {
 		name                string
@@ -25,7 +29,7 @@ func TestHandleShortenURL(t *testing.T) {
 			name:                "ValidRequest",
 			requestBody:         "https://example.com",
 			expectedStatus:      http.StatusCreated,
-			expectedBody:        "http://127.0.0.1:8080/", // plus the slug
+			expectedBody:        BASE_URL + "/", // plus the slug
 			expectedContentType: PlainTextContentType,
 		},
 		{
@@ -39,7 +43,7 @@ func TestHandleShortenURL(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := memstore.New()
-			handler := NewRequestHandler(memStorage)
+			handler := NewRequestHandler(memStorage, BASE_URL)
 
 			body := bytes.NewBufferString(tc.requestBody)
 			req, err := http.NewRequest("POST", "/", body)
@@ -55,7 +59,7 @@ func TestHandleShortenURL(t *testing.T) {
 			if tc.expectedStatus == http.StatusCreated {
 				shortURL := recorder.Body.String()
 				// Extracting slug from short URL
-				slug := strings.TrimPrefix(shortURL, "http://127.0.0.1:8080/")
+				slug := strings.TrimPrefix(shortURL, BASE_URL+"/")
 				assert.NotEmpty(t, slug, "slug should not be empty")
 				assert.Len(t, slug, slugLen, "slug length should be equal to slugLen const")
 			}
@@ -109,7 +113,7 @@ func TestHandleJSONShortenURL(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := memstore.New()
-			handler := NewRequestHandler(memStorage)
+			handler := NewRequestHandler(memStorage, BASE_URL)
 
 			body := bytes.NewBufferString(tc.requestBody)
 			req, err := http.NewRequest("POST", "/api/shorten", body)
@@ -126,7 +130,7 @@ func TestHandleJSONShortenURL(t *testing.T) {
 				err := json.Unmarshal(recorder.Body.Bytes(), &response)
 				assert.NoError(t, err)
 				assert.NotEmpty(t, response.Result)
-				assert.True(t, strings.HasPrefix(response.Result, "http://127.0.0.1:8080/"))
+				assert.True(t, strings.HasPrefix(response.Result, BASE_URL+"/"))
 			} else {
 				assert.Contains(t, recorder.Body.String(), tc.expectedBody)
 			}
@@ -157,7 +161,7 @@ func TestHandleExpandURL(t *testing.T) {
 			if err := memStorage.Write("abc123", "https://example.com"); err != nil {
 				t.Fatalf("memstore write error")
 			}
-			handler := NewRequestHandler(memStorage)
+			handler := NewRequestHandler(memStorage, BASE_URL)
 
 			req, err := http.NewRequest("GET", "/"+tc.slug, nil)
 			assert.NoError(t, err)
@@ -199,7 +203,7 @@ func TestDefaultHandler(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := memstore.New()
-			handler := NewRequestHandler(memStorage)
+			handler := NewRequestHandler(memStorage, BASE_URL)
 
 			req, err := http.NewRequest(tc.method, "/", nil)
 			assert.NoError(t, err)
