@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -53,7 +52,7 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 	}
 
 	slug := GenerateSlug()
-	shortURL := fmt.Sprintf("http://127.0.0.1:8080/%s", slug)
+	shortURL := rh.baseURL + "/" + slug
 	log.Printf("original url %s, shortened url: %s", originalURL, shortURL)
 
 	if err := rh.storage.Write(slug, string(originalURL)); err != nil {
@@ -90,7 +89,7 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 	}
 
 	slug := GenerateSlug()
-	shortURL := fmt.Sprintf("http://127.0.0.1:8080/%s", slug)
+	shortURL := rh.baseURL + "/" + slug
 	log.Printf("original url %s, shortened url: %s", shortenReq.URL, shortURL)
 
 	if err := rh.storage.Write(slug, string(shortenReq.URL)); err != nil {
