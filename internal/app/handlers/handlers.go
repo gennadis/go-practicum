@@ -34,6 +34,7 @@ func HandleShortenURL(storage storage.Repository) http.HandlerFunc {
 		originalURL, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
 		if string(originalURL) == "" {
 			http.Error(w, ErrorMissingURLParameter.Error(), http.StatusBadRequest)
@@ -52,8 +53,7 @@ func HandleShortenURL(storage storage.Repository) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", PlainTextContentType)
 		w.WriteHeader(http.StatusCreated)
-		_, err = w.Write([]byte(shortURL))
-		if err != nil {
+		if _, err := w.Write([]byte(shortURL)); err != nil {
 			log.Println("error writing response:", err)
 		}
 	}
