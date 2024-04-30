@@ -7,7 +7,6 @@ import (
 )
 
 func TestGenerateSlug(t *testing.T) {
-	// Test case for a valid slug
 	t.Run("ValidSlug", func(t *testing.T) {
 		slug := GenerateSlug()
 		assert.Greater(t, slugLen, 0)
