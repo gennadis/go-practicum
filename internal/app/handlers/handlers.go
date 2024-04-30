@@ -39,8 +39,8 @@ func HandleShortenURL(storage storage.Repository) http.HandlerFunc {
 			return
 		}
 
-		w.WriteHeader(http.StatusCreated)
 		w.Header().Set("Content-Type", PlainTextContentType)
+		w.WriteHeader(http.StatusCreated)
 		_, err = w.Write([]byte(shortURL))
 		if err != nil {
 			log.Println("error writing response:", err)
