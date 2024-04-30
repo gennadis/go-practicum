@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	baseURL = "http://localhost:8080/"
+	baseURL = "http://localhost:8080"
 )
 
 func TestHandleShortenURL(t *testing.T) {
@@ -29,7 +29,7 @@ func TestHandleShortenURL(t *testing.T) {
 			name:                "ValidRequest",
 			requestBody:         "https://example.com",
 			expectedStatus:      http.StatusCreated,
-			expectedBody:        baseURL, // plus the slug
+			expectedBody:        baseURL + "/", // plus the slug
 			expectedContentType: PlainTextContentType,
 		},
 		{
@@ -59,7 +59,7 @@ func TestHandleShortenURL(t *testing.T) {
 			if tc.expectedStatus == http.StatusCreated {
 				shortURL := recorder.Body.String()
 				// Extracting slug from short URL
-				slug := strings.TrimPrefix(shortURL, baseURL)
+				slug := strings.TrimPrefix(shortURL, baseURL+"/")
 				assert.NotEmpty(t, slug, "slug should not be empty")
 				assert.Len(t, slug, slugLen, "slug length should be equal to slugLen const")
 			}
@@ -130,7 +130,7 @@ func TestHandleJSONShortenURL(t *testing.T) {
 				err := json.Unmarshal(recorder.Body.Bytes(), &response)
 				assert.NoError(t, err)
 				assert.NotEmpty(t, response.Result)
-				assert.True(t, strings.HasPrefix(response.Result, baseURL))
+				assert.True(t, strings.HasPrefix(response.Result, baseURL+"/"))
 			} else {
 				assert.Contains(t, recorder.Body.String(), tc.expectedBody)
 			}

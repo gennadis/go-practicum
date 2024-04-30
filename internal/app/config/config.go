@@ -6,7 +6,7 @@ import (
 
 const (
 	defaultServerAddr = "localhost:8080"
-	defaultBaseURL    = "http://localhost:8080/"
+	defaultBaseURL    = "http://localhost:8080"
 )
 
 type Config struct {
