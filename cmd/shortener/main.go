@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -13,6 +12,5 @@ func main() {
 	config := config.SetConfig()
 	server := server.New(config)
 	server.MountHandlers()
-	fmt.Printf("%T", server.Storage)
 	log.Fatal(http.ListenAndServe(server.Config.ServerAddr, server.Router))
 }
