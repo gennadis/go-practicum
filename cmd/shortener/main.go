@@ -1,18 +1,18 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/gennadis/shorturl/internal/app/config"
 	"github.com/gennadis/shorturl/internal/app/server"
-	"github.com/gennadis/shorturl/internal/app/storage/memstore"
 )
 
 func main() {
-	memStorage := memstore.New()
 	config := config.SetConfig()
-	server := server.New(memStorage, config)
+	server := server.New(config)
 	server.MountHandlers()
+	fmt.Printf("%T", server.Storage)
 	log.Fatal(http.ListenAndServe(server.Config.ServerAddr, server.Router))
 }

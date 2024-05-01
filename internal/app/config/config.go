@@ -10,14 +10,16 @@ const (
 )
 
 type Config struct {
-	ServerAddr string
-	BaseURL    string
+	ServerAddr      string
+	BaseURL         string
+	FileStoragePath string
 }
 
 func SetConfig() Config {
 	return Config{
-		ServerAddr: getEnvOrDefault("SERVER_ADDRESS", defaultServerAddr),
-		BaseURL:    getEnvOrDefault("BASE_URL", defaultBaseURL),
+		ServerAddr:      getEnvOrDefault("SERVER_ADDRESS", defaultServerAddr),
+		BaseURL:         getEnvOrDefault("BASE_URL", defaultBaseURL),
+		FileStoragePath: os.Getenv("FILE_STORAGE_PATH"),
 	}
 }
 
