@@ -4,11 +4,6 @@ import (
 	"os"
 )
 
-const (
-	defaultServerAddr = "localhost:8080"
-	defaultBaseURL    = "http://localhost:8080"
-)
-
 type Config struct {
 	ServerAddr      string
 	BaseURL         string
@@ -17,16 +12,8 @@ type Config struct {
 
 func SetConfig() Config {
 	return Config{
-		ServerAddr:      getEnvOrDefault("SERVER_ADDRESS", defaultServerAddr),
-		BaseURL:         getEnvOrDefault("BASE_URL", defaultBaseURL),
+		ServerAddr:      os.Getenv("SERVER_ADDRESS"),
+		BaseURL:         os.Getenv("BASE_URL"),
 		FileStoragePath: os.Getenv("FILE_STORAGE_PATH"),
 	}
-}
-
-func getEnvOrDefault(key, defaultValue string) string {
-	value, ok := os.LookupEnv(key)
-	if !ok {
-		return defaultValue
-	}
-	return value
 }
