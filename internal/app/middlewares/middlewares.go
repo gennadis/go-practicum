@@ -18,7 +18,7 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 
 func ReceiveCompressed(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
+		if !strings.Contains(strings.ToLower(r.Header.Get("Content-Encoding")), "gzip") {
 			next.ServeHTTP(w, r)
 			return
 		}
