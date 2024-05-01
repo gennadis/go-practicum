@@ -1,13 +1,6 @@
 package memstore
 
-import (
-	"errors"
-)
-
-var (
-	ErrorUnknownSlugProvided = errors.New("unknown slug provided")
-	ErrorEmptySlugProvided   = errors.New("empty slug provided")
-)
+import "github.com/gennadis/shorturl/internal/app/storage"
 
 type MemStore struct {
 	data map[string]string
@@ -22,14 +15,14 @@ func New() *MemStore {
 func (m *MemStore) Read(key string) (string, error) {
 	originalURL, ok := m.data[key]
 	if !ok {
-		return "", ErrorUnknownSlugProvided
+		return "", storage.ErrorUnknownSlugProvided
 	}
 	return originalURL, nil
 }
 
 func (m *MemStore) Write(key string, value string) error {
 	if key == "" {
-		return ErrorEmptySlugProvided
+		return storage.ErrorEmptySlugProvided
 	}
 	m.data[key] = value
 	return nil
