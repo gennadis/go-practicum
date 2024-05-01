@@ -5,6 +5,7 @@ import (
 
 	"github.com/gennadis/shorturl/internal/app/config"
 	"github.com/gennadis/shorturl/internal/app/handlers"
+	"github.com/gennadis/shorturl/internal/app/middlewares"
 	"github.com/gennadis/shorturl/internal/app/storage"
 
 	"github.com/gennadis/shorturl/internal/app/storage/filestore"
@@ -45,6 +46,8 @@ func (s *Server) MountHandlers() {
 	reqHandler := handlers.NewRequestHandler(s.Storage, s.Config.BaseURL)
 
 	s.Router.Use(middleware.Logger)
+	s.Router.Use(middlewares.ReceiveCompressed)
+	s.Router.Use(middlewares.SendCompressed)
 
 	s.Router.Get("/{slug}", reqHandler.HandleExpandURL)
 	s.Router.Post("/", reqHandler.HandleShortenURL)
