@@ -29,6 +29,11 @@ type ShortenURLResponse struct {
 	Result string `json:"result"`
 }
 
+type UserURL struct {
+	ShortUrl    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+}
+
 type RequestHandler struct {
 	storage storage.Repository
 	baseURL string
@@ -136,4 +141,41 @@ func (rh *RequestHandler) HandleExpandURL(w http.ResponseWriter, r *http.Request
 
 func (rh *RequestHandler) HandleNotFound(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, ErrorInvalidRequest.Error(), http.StatusBadRequest)
+}
+
+func (rh *RequestHandler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
+	userID := testUser
+	log.Printf("urls for user %s requested", userID)
+
+	userURLs, err := rh.storage.GetUserURLs(testUser)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Print(err.Error())
+		return
+	}
+	log.Printf("urls for user %s found: %s", userID, userURLs)
+
+	if len(userURLs) == 0 {
+		log.Printf("no urls for user %s found", userID)
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	var resp []UserURL
+	for slug, originalURL := range userURLs {
+		resp = append(resp, UserURL{ShortUrl: slug, OriginalURL: originalURL})
+	}
+	respJSON, err := json.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Print(err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", JSONContentType)
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(respJSON); err != nil {
+		log.Println("error writing response:", err)
+		return
+	}
 }

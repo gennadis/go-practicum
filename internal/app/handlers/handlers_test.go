@@ -220,3 +220,47 @@ func TestDefaultHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleGetUserURLs(t *testing.T) {
+	tests := []struct {
+		name           string
+		userID         string
+		expectedStatus int
+		expectedBody   string
+	}{
+		{
+			name:           "ValidUserID",
+			userID:         "testUser",
+			expectedStatus: http.StatusOK,
+			expectedBody:   `[{"short_url":"abc123","original_url":"https://example.com"}]`,
+		},
+		{
+			name:           "NonExistentUserID",
+			userID:         "nonexistentUser",
+			expectedStatus: http.StatusBadRequest,
+			expectedBody:   "",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			memStorage := memstore.New()
+			if tc.userID == "testUser" {
+				if err := memStorage.Write("abc123", "https://example.com", "testUser"); err != nil {
+					t.Fatalf("memstore write error")
+				}
+			}
+			handler := NewRequestHandler(memStorage, baseURL)
+
+			req, err := http.NewRequest("GET", "/api/user/urls", nil)
+			assert.NoError(t, err)
+
+			recorder := httptest.NewRecorder()
+			handler.HandleGetUserURLs(recorder, req)
+
+			assert.Equal(t, tc.expectedStatus, recorder.Code)
+			if tc.expectedStatus == http.StatusOK {
+				assert.JSONEq(t, tc.expectedBody, recorder.Body.String())
+			}
+		})
+	}
+}
