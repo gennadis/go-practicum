@@ -10,13 +10,13 @@ import (
 
 type FileStore struct {
 	filename string
-	data     map[string]string
+	data     map[string]map[string]string
 }
 
 func New(filename string) (*FileStore, error) {
 	fs := &FileStore{
 		filename: filename,
-		data:     make(map[string]string),
+		data:     make(map[string]map[string]string),
 	}
 
 	if err := fs.loadData(); err != nil {
@@ -39,7 +39,7 @@ func (f *FileStore) loadData() error {
 
 	if fileInfo.Size() == 0 {
 		// if the file is empty, initialize an empty data map
-		f.data = make(map[string]string)
+		f.data = make(map[string]map[string]string)
 		return nil
 	}
 
@@ -65,23 +65,31 @@ func (f *FileStore) saveData() error {
 	return nil
 }
 
-func (f *FileStore) Read(key string) (string, error) {
-	value, ok := f.data[key]
+func (f *FileStore) Read(slug string, userID string) (string, error) {
+	userURLs, ok := f.data[userID]
+	if !ok {
+		return "", storage.ErrorUnknownUserProvided
+	}
+	originalURL, ok := userURLs[slug]
 	if !ok {
 		return "", storage.ErrorUnknownSlugProvided
 	}
-	return value, nil
+	return originalURL, nil
 }
 
-func (f *FileStore) Write(key string, value string) error {
-	if key == "" {
+func (f *FileStore) Write(slug string, originalURL string, userID string) error {
+	if slug == "" {
 		return storage.ErrorEmptySlugProvided
 	}
-	f.data[key] = value
+	userURLs, ok := f.data[userID]
+	if !ok {
+		userURLs = make(map[string]string)
+	}
+	userURLs[slug] = originalURL
+	f.data[userID] = userURLs
 
 	if err := f.saveData(); err != nil {
 		return fmt.Errorf("error saving data to file: %v", err)
 	}
-
 	return nil
 }

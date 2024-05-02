@@ -10,6 +10,8 @@ import (
 	"github.com/gennadis/shorturl/internal/app/storage"
 )
 
+const testUser = "testUser" // TODO: store userID in cookie
+
 const (
 	JSONContentType      = "application/json"
 	PlainTextContentType = "text/plain; charset=utf-8"
@@ -55,7 +57,7 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 	shortURL := rh.baseURL + "/" + slug
 	log.Printf("original url %s, shortened url: %s", originalURL, shortURL)
 
-	if err := rh.storage.Write(slug, string(originalURL)); err != nil {
+	if err := rh.storage.Write(slug, string(originalURL), testUser); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		log.Print(err.Error())
 		return
@@ -92,7 +94,7 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 	shortURL := rh.baseURL + "/" + slug
 	log.Printf("original url %s, shortened url: %s", shortenReq.URL, shortURL)
 
-	if err := rh.storage.Write(slug, string(shortenReq.URL)); err != nil {
+	if err := rh.storage.Write(slug, string(shortenReq.URL), testUser); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Println("error writing to storage:", err)
 		return
@@ -119,7 +121,7 @@ func (rh *RequestHandler) HandleExpandURL(w http.ResponseWriter, r *http.Request
 	slug := r.URL.Path[1:]
 	log.Printf("originalURL for slug %s requested", slug)
 
-	originalURL, err := rh.storage.Read(slug)
+	originalURL, err := rh.storage.Read(slug, testUser)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		log.Print(err.Error())

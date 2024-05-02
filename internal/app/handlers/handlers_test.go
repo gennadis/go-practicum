@@ -142,23 +142,26 @@ func TestHandleExpandURL(t *testing.T) {
 	tests := []struct {
 		name           string
 		slug           string
+		userID         string
 		expectedStatus int
 	}{
 		{
 			name:           "ValidSlug",
 			slug:           "abc123",
+			userID:         "testUser",
 			expectedStatus: http.StatusTemporaryRedirect,
 		},
 		{
 			name:           "NonExistentSlug",
 			slug:           "nonexistent",
+			userID:         "testUser",
 			expectedStatus: http.StatusBadRequest,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := memstore.New()
-			if err := memStorage.Write("abc123", "https://example.com"); err != nil {
+			if err := memStorage.Write("abc123", "https://example.com", "testUser"); err != nil {
 				t.Fatalf("memstore write error")
 			}
 			handler := NewRequestHandler(memStorage, baseURL)

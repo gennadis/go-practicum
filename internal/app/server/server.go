@@ -42,6 +42,7 @@ func createStorage(config config.Config) storage.Repository {
 
 	return serverStorage
 }
+
 func (s *Server) MountHandlers() {
 	reqHandler := handlers.NewRequestHandler(s.Storage, s.Config.BaseURL)
 
