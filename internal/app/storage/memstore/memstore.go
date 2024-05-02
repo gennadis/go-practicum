@@ -38,3 +38,11 @@ func (m *MemStore) Write(slug string, originalURL string, userID string) error {
 	m.data[userID] = userURLs
 	return nil
 }
+
+func (m *MemStore) GetUserURLs(userID string) (map[string]string, error) {
+	userURLs, ok := m.data[userID]
+	if !ok {
+		return nil, storage.ErrorUnknownUserProvided
+	}
+	return userURLs, nil
+}

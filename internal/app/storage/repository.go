@@ -12,4 +12,5 @@ var (
 type Repository interface {
 	Read(slug string, userID string) (string, error)
 	Write(slug string, originalURL string, userID string) error
+	GetUserURLs(userID string) (map[string]string, error)
 }
