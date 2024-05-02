@@ -3,6 +3,7 @@ package filestore_test
 import (
 	"encoding/json"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/gennadis/shorturl/internal/app/storage"
@@ -124,5 +125,44 @@ func TestFileStore_AppendData(t *testing.T) {
 		} else {
 			t.Errorf("Expected userID map not found in file data")
 		}
+	}
+}
+
+func TestFileStore_GetUserURLs(t *testing.T) {
+	tmpfile, err := os.CreateTemp("", "test_file_store")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+	tmpfile.Close()
+
+	store, err := filestore.New(tmpfile.Name())
+	if err != nil {
+		t.Fatalf("Error creating file store: %v", err)
+	}
+
+	data := map[string]string{
+		"key1": "https://example1.com",
+		"key2": "https://example2.com",
+	}
+
+	// Write data to the store
+	for key, value := range data {
+		if err := store.Write(key, value, "userID"); err != nil {
+			t.Fatalf("Error writing to store: %v", err)
+		}
+	}
+
+	// Execute GetUserURLs method
+	urls, err := store.GetUserURLs("userID")
+
+	// Check for any errors
+	if err != nil {
+		t.Fatalf("Error getting user URLs: %v", err)
+	}
+
+	// Check if URLs map matches expectation
+	if !reflect.DeepEqual(urls, data) {
+		t.Errorf("Expected URLs %+v, got %+v", data, urls)
 	}
 }
