@@ -47,8 +47,9 @@ func (s *Server) MountHandlers() {
 	reqHandler := handlers.NewRequestHandler(s.Storage, s.Config.BaseURL)
 
 	s.Router.Use(middleware.Logger)
-	s.Router.Use(middlewares.ReceiveCompressed)
-	s.Router.Use(middlewares.SendCompressed)
+	s.Router.Use(middlewares.CookieAuthMiddleware)
+	s.Router.Use(middlewares.GzipReceiverMiddleware)
+	s.Router.Use(middlewares.GzipSenderMiddleware)
 
 	s.Router.Get("/{slug}", reqHandler.HandleExpandURL)
 	s.Router.Get("/api/user/urls", reqHandler.HandleGetUserURLs)

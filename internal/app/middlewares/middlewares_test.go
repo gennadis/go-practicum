@@ -40,7 +40,7 @@ func TestReceiveCompressed(t *testing.T) {
 			req.Header.Set("Content-Encoding", tc.contentEncoding)
 			rec := httptest.NewRecorder()
 
-			handler := ReceiveCompressed(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			handler := GzipReceiverMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			}))
 
@@ -77,7 +77,7 @@ func TestSendCompressed(t *testing.T) {
 			req.Header.Set("Accept-Encoding", tc.acceptEncoding)
 			rec := httptest.NewRecorder()
 
-			handler := SendCompressed(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			handler := GzipSenderMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			}))
 
