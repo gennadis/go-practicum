@@ -3,6 +3,7 @@ package filestore
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/gennadis/shorturl/internal/app/storage"
@@ -66,11 +67,15 @@ func (f *FileStore) saveData() error {
 }
 
 func (f *FileStore) Read(slug string, userID string) (string, error) {
-	userURLs, ok := f.data[userID]
-	if !ok {
-		return "", storage.ErrorUnknownUserProvided
+	log.Printf("user %s requested slug %s", userID, slug)
+	slugURLpairs := make(map[string]string)
+	for _, innerMap := range f.data {
+		for key, value := range innerMap {
+			slugURLpairs[key] = value
+		}
 	}
-	originalURL, ok := userURLs[slug]
+
+	originalURL, ok := slugURLpairs[slug]
 	if !ok {
 		return "", storage.ErrorUnknownSlugProvided
 	}

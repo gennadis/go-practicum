@@ -1,6 +1,8 @@
 package memstore
 
 import (
+	"log"
+
 	"github.com/gennadis/shorturl/internal/app/storage"
 )
 
@@ -15,11 +17,15 @@ func New() *MemStore {
 }
 
 func (m *MemStore) Read(slug string, userID string) (string, error) {
-	userURLs, ok := m.data[userID]
-	if !ok {
-		return "", storage.ErrorUnknownUserProvided
+	log.Printf("user %s requested slug %s", userID, slug)
+	slugURLpairs := make(map[string]string)
+	for _, innerMap := range m.data {
+		for key, value := range innerMap {
+			slugURLpairs[key] = value
+		}
 	}
-	originalURL, ok := userURLs[slug]
+
+	originalURL, ok := slugURLpairs[slug]
 	if !ok {
 		return "", storage.ErrorUnknownSlugProvided
 	}
