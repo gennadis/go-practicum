@@ -3,6 +3,7 @@ package filestore_test
 import (
 	"encoding/json"
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/gennadis/shorturl/internal/app/storage"
@@ -21,6 +22,7 @@ func TestFileStore_ReadWrite(t *testing.T) {
 		name          string
 		key           string
 		value         string
+		userID        string
 		expectedValue string
 		expectedError error
 	}{
@@ -28,12 +30,14 @@ func TestFileStore_ReadWrite(t *testing.T) {
 			name:          "Valid key-value pair",
 			key:           "key1",
 			value:         "https://example.com",
+			userID:        "testUser",
 			expectedValue: "https://example.com",
 			expectedError: nil,
 		},
 		{
 			name:          "Non-existent key",
 			key:           "nonexistent",
+			userID:        "testUser",
 			expectedValue: "",
 			expectedError: storage.ErrorUnknownSlugProvided,
 		},
@@ -41,6 +45,7 @@ func TestFileStore_ReadWrite(t *testing.T) {
 			name:          "Empty key",
 			key:           "",
 			value:         "https://example.com",
+			userID:        "testUser",
 			expectedValue: "",
 			expectedError: storage.ErrorEmptySlugProvided,
 		},
@@ -53,7 +58,7 @@ func TestFileStore_ReadWrite(t *testing.T) {
 				t.Fatalf("Error creating file store: %v", err)
 			}
 
-			err = store.Write(test.key, test.value)
+			err = store.Write(test.key, test.value, test.userID)
 			if err != nil {
 				if err != test.expectedError {
 					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
@@ -61,7 +66,7 @@ func TestFileStore_ReadWrite(t *testing.T) {
 				return
 			}
 
-			readValue, err := store.Read(test.key)
+			readValue, err := store.Read(test.key, test.userID)
 			if err != nil {
 				if err != test.expectedError {
 					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
@@ -96,7 +101,7 @@ func TestFileStore_AppendData(t *testing.T) {
 	}
 
 	for key, value := range data {
-		if err := store.Write(key, value); err != nil {
+		if err := store.Write(key, value, "userID"); err != nil {
 			t.Fatalf("Error writing to store: %v", err)
 		}
 	}
@@ -106,15 +111,50 @@ func TestFileStore_AppendData(t *testing.T) {
 		t.Fatalf("Error reading file content: %v", err)
 	}
 
-	var fileData map[string]string
+	var fileData map[string]map[string]string
 	decoder := json.NewDecoder(fileContent)
 	if err := decoder.Decode(&fileData); err != nil {
 		t.Fatalf("Error decoding JSON: %v", err)
 	}
 
 	for key, expectedValue := range data {
-		if value, ok := fileData[key]; !ok || value != expectedValue {
-			t.Errorf("Expected value %s for key %s, got %s", expectedValue, key, value)
+		if userURLs, ok := fileData["userID"]; ok {
+			if value, ok := userURLs[key]; !ok || value != expectedValue {
+				t.Errorf("Expected value %s for key %s, got %s", expectedValue, key, value)
+			}
+		} else {
+			t.Errorf("Expected userID map not found in file data")
 		}
+	}
+}
+
+func TestFileStore_GetUserURLs(t *testing.T) {
+	tmpfile, err := os.CreateTemp("", "test_file_store")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+	tmpfile.Close()
+
+	store, err := filestore.New(tmpfile.Name())
+	if err != nil {
+		t.Fatalf("Error creating file store: %v", err)
+	}
+
+	data := map[string]string{
+		"key1": "https://example1.com",
+		"key2": "https://example2.com",
+	}
+
+	for key, value := range data {
+		if err := store.Write(key, value, "userID"); err != nil {
+			t.Fatalf("Error writing to store: %v", err)
+		}
+	}
+
+	urls := store.GetUserURLs("userID")
+
+	if !reflect.DeepEqual(urls, data) {
+		t.Errorf("Expected URLs %+v, got %+v", data, urls)
 	}
 }

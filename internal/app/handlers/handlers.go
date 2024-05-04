@@ -10,6 +10,10 @@ import (
 	"github.com/gennadis/shorturl/internal/app/storage"
 )
 
+type contextKey string
+
+const UserIDContextKey contextKey = "userID"
+
 const (
 	JSONContentType      = "application/json"
 	PlainTextContentType = "text/plain; charset=utf-8"
@@ -27,6 +31,11 @@ type ShortenURLResponse struct {
 	Result string `json:"result"`
 }
 
+type UserURL struct {
+	ShortUrl    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+}
+
 type RequestHandler struct {
 	storage storage.Repository
 	baseURL string
@@ -39,7 +48,22 @@ func NewRequestHandler(storage storage.Repository, baseURL string) *RequestHandl
 	}
 }
 
+func getUserIDFromContext(r *http.Request) (string, error) {
+	userID, ok := r.Context().Value(UserIDContextKey).(string)
+	if !ok {
+		return "", errors.New("userID not found in context")
+	}
+	return userID, nil
+}
+
 func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	defer r.Body.Close()
 	originalURL, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -55,7 +79,7 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 	shortURL := rh.baseURL + "/" + slug
 	log.Printf("original url %s, shortened url: %s", originalURL, shortURL)
 
-	if err := rh.storage.Write(slug, string(originalURL)); err != nil {
+	if err := rh.storage.Write(slug, string(originalURL), userID); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		log.Print(err.Error())
 		return
@@ -69,6 +93,13 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 }
 
 func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	defer r.Body.Close()
 	reqBody, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -92,7 +123,7 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 	shortURL := rh.baseURL + "/" + slug
 	log.Printf("original url %s, shortened url: %s", shortenReq.URL, shortURL)
 
-	if err := rh.storage.Write(slug, string(shortenReq.URL)); err != nil {
+	if err := rh.storage.Write(slug, string(shortenReq.URL), userID); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Println("error writing to storage:", err)
 		return
@@ -116,10 +147,17 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 }
 
 func (rh *RequestHandler) HandleExpandURL(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	slug := r.URL.Path[1:]
 	log.Printf("originalURL for slug %s requested", slug)
 
-	originalURL, err := rh.storage.Read(slug)
+	originalURL, err := rh.storage.Read(slug, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		log.Print(err.Error())
@@ -134,4 +172,42 @@ func (rh *RequestHandler) HandleExpandURL(w http.ResponseWriter, r *http.Request
 
 func (rh *RequestHandler) HandleNotFound(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, ErrorInvalidRequest.Error(), http.StatusBadRequest)
+}
+
+func (rh *RequestHandler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	log.Printf("urls for user %s requested", userID)
+
+	userURLs := rh.storage.GetUserURLs(userID)
+	log.Printf("urls for user %s found: %s", userID, userURLs)
+
+	if len(userURLs) == 0 {
+		log.Printf("no urls for user %s found", userID)
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	var resp []UserURL
+	for slug, originalURL := range userURLs {
+		shortURL := rh.baseURL + "/" + slug
+		resp = append(resp, UserURL{ShortUrl: shortURL, OriginalURL: originalURL})
+	}
+	respJSON, err := json.Marshal(resp)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Print(err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", JSONContentType)
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(respJSON); err != nil {
+		log.Println("error writing response:", err)
+		return
+	}
 }

@@ -42,14 +42,17 @@ func createStorage(config config.Config) storage.Repository {
 
 	return serverStorage
 }
+
 func (s *Server) MountHandlers() {
 	reqHandler := handlers.NewRequestHandler(s.Storage, s.Config.BaseURL)
 
 	s.Router.Use(middleware.Logger)
-	s.Router.Use(middlewares.ReceiveCompressed)
-	s.Router.Use(middlewares.SendCompressed)
+	s.Router.Use(middlewares.CookieAuthMiddleware)
+	s.Router.Use(middlewares.GzipReceiverMiddleware)
+	s.Router.Use(middlewares.GzipSenderMiddleware)
 
 	s.Router.Get("/{slug}", reqHandler.HandleExpandURL)
+	s.Router.Get("/api/user/urls", reqHandler.HandleGetUserURLs)
 	s.Router.Post("/", reqHandler.HandleShortenURL)
 	s.Router.Post("/api/shorten", reqHandler.HandleJSONShortenURL)
 	s.Router.NotFound(reqHandler.HandleNotFound)

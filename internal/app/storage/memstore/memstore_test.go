@@ -1,6 +1,7 @@
 package memstore_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/gennadis/shorturl/internal/app/storage"
@@ -12,6 +13,7 @@ func TestMemStore_ReadWrite(t *testing.T) {
 		name          string
 		key           string
 		value         string
+		userID        string
 		expectedValue string
 		expectedError error
 	}{
@@ -19,12 +21,14 @@ func TestMemStore_ReadWrite(t *testing.T) {
 			name:          "Valid key-value pair",
 			key:           "key",
 			value:         "https://example.com",
+			userID:        "testUser",
 			expectedValue: "https://example.com",
 			expectedError: nil,
 		},
 		{
 			name:          "Non-existent key",
 			key:           "nonexistent",
+			userID:        "testUser",
 			expectedValue: "",
 			expectedError: storage.ErrorUnknownSlugProvided,
 		},
@@ -32,6 +36,7 @@ func TestMemStore_ReadWrite(t *testing.T) {
 			name:          "Empty key",
 			key:           "",
 			value:         "https://example.com",
+			userID:        "testUser",
 			expectedValue: "",
 			expectedError: storage.ErrorEmptySlugProvided,
 		},
@@ -41,7 +46,7 @@ func TestMemStore_ReadWrite(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			store := memstore.New()
 
-			err := store.Write(test.key, test.value)
+			err := store.Write(test.key, test.value, test.userID)
 			if err != nil {
 				if err != test.expectedError {
 					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
@@ -49,7 +54,7 @@ func TestMemStore_ReadWrite(t *testing.T) {
 				return
 			}
 
-			readValue, err := store.Read(test.key)
+			readValue, err := store.Read(test.key, test.userID)
 			if err != nil {
 				if err != test.expectedError {
 					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
@@ -61,5 +66,26 @@ func TestMemStore_ReadWrite(t *testing.T) {
 				t.Errorf("Expected value %s, got %s", test.expectedValue, readValue)
 			}
 		})
+	}
+}
+
+func TestMemStore_GetUserURLs(t *testing.T) {
+	store := memstore.New()
+
+	data := map[string]string{
+		"key1": "https://example1.com",
+		"key2": "https://example2.com",
+	}
+
+	for key, value := range data {
+		if err := store.Write(key, value, "userID"); err != nil {
+			t.Fatalf("Error writing to store: %v", err)
+		}
+	}
+
+	urls := store.GetUserURLs("userID")
+
+	if !reflect.DeepEqual(urls, data) {
+		t.Errorf("Expected URLs %+v, got %+v", data, urls)
 	}
 }
