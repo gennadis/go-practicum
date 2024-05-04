@@ -194,7 +194,8 @@ func (rh *RequestHandler) HandleGetUserURLs(w http.ResponseWriter, r *http.Reque
 
 	var resp []UserURL
 	for slug, originalURL := range userURLs {
-		resp = append(resp, UserURL{ShortUrl: slug, OriginalURL: originalURL})
+		shortURL := rh.baseURL + "/" + slug
+		resp = append(resp, UserURL{ShortUrl: shortURL, OriginalURL: originalURL})
 	}
 	respJSON, err := json.Marshal(resp)
 	if err != nil {
