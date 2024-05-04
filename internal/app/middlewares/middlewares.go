@@ -83,13 +83,13 @@ func CookieAuthMiddleware(next http.Handler) http.Handler {
 		}
 		log.Println("cookie is valid")
 
-		decodedCookie, err := base64.StdEncoding.DecodeString(cookie.Value)
-		if err != nil || len(decodedCookie) < sha256.Size {
-			log.Println("error decoding cookie userID value")
+		cookieValue, _, err := decodeCookieValue(cookie)
+		if err != nil {
+			log.Println("error decoding cookie userID value:", err)
 			next.ServeHTTP(w, r)
 			return
 		}
-		cookieValue := decodedCookie[:len(decodedCookie)-sha256.Size]
+
 		ctx := context.WithValue(r.Context(), handlers.UserIDContextKey, string(cookieValue))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -112,16 +112,26 @@ func isValidCookie(cookie *http.Cookie) bool {
 		return false
 	}
 
-	decodedCookie, err := base64.StdEncoding.DecodeString(cookie.Value)
-	if err != nil || len(decodedCookie) < sha256.Size {
+	cookieValue, hmacSignature, err := decodeCookieValue(cookie)
+	if err != nil {
 		return false
 	}
-	cookieValue := decodedCookie[:len(decodedCookie)-sha256.Size]
-	hmacSignature := decodedCookie[len(decodedCookie)-sha256.Size:]
 
 	mac := hmac.New(sha256.New, []byte(secretKey))
 	mac.Write(cookieValue)
 	expectedHMAC := mac.Sum(nil)
 
 	return hmac.Equal(hmacSignature, expectedHMAC)
+}
+
+func decodeCookieValue(cookie *http.Cookie) ([]byte, []byte, error) {
+	decodedCookie, err := base64.StdEncoding.DecodeString(cookie.Value)
+	if err != nil || len(decodedCookie) < sha256.Size {
+		return nil, nil, err
+	}
+
+	cookieValue := decodedCookie[:len(decodedCookie)-sha256.Size]
+	hmacSignature := decodedCookie[len(decodedCookie)-sha256.Size:]
+
+	return cookieValue, hmacSignature, nil
 }

@@ -3,6 +3,8 @@ package middlewares
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/hmac"
+	"crypto/sha256"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -244,6 +246,62 @@ func TestCookieAuthMiddleware(t *testing.T) {
 				assert.NotEmpty(t, cookie.Value)
 				assert.True(t, isValidCookie(cookie), "Cookie signature verification failed")
 			}
+		})
+	}
+}
+
+func TestDecodeCookieValue(t *testing.T) {
+	userID := "userID"
+	testCases := []struct {
+		name              string
+		cookieValue       string
+		expectedCookie    []byte
+		expectedSignature []byte
+		expectError       bool
+	}{
+		{
+			name:              "ValidCookie",
+			cookieValue:       signCookie(userID),
+			expectedCookie:    []byte(userID),
+			expectedSignature: []byte(secretKey),
+			expectError:       false,
+		},
+		{
+			name:              "InvalidBase64",
+			cookieValue:       "v",
+			expectedCookie:    nil,
+			expectedSignature: nil,
+			expectError:       true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cookie := &http.Cookie{
+				Value: tc.cookieValue,
+			}
+
+			cookieValue, hmacSignature, err := decodeCookieValue(cookie)
+			mac := hmac.New(sha256.New, []byte(secretKey))
+			mac.Write(cookieValue)
+			expectedHMAC := mac.Sum(nil)
+
+			if tc.expectError {
+				if err == nil {
+					t.Errorf("Expected an error, but got nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+				return
+			}
+
+			if !hmac.Equal(hmacSignature, expectedHMAC) {
+				t.Errorf("Cookie value mismatch. Expected: %v, Got: %v", tc.expectedCookie, cookieValue)
+			}
+
 		})
 	}
 }
