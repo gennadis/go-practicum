@@ -33,7 +33,7 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 func GzipReceiverMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(strings.ToLower(r.Header.Get("Content-Encoding")), "gzip") {
-			next.ServeHTTP(w, r.WithContext(r.Context()))
+			next.ServeHTTP(w, r)
 			return
 		}
 
@@ -44,21 +44,21 @@ func GzipReceiverMiddleware(next http.Handler) http.Handler {
 		}
 		defer uncompressed.Close()
 		r.Body = uncompressed
-		next.ServeHTTP(w, r.WithContext(r.Context()))
+		next.ServeHTTP(w, r)
 	})
 }
 
 func GzipSenderMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			next.ServeHTTP(w, r.WithContext(r.Context()))
+			next.ServeHTTP(w, r)
 			return
 		}
 
 		compressed := gzip.NewWriter(w)
 		defer compressed.Close()
 		w.Header().Set("Content-Encoding", "gzip")
-		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: compressed}, r.WithContext(r.Context()))
+		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: compressed}, r)
 	})
 }
 

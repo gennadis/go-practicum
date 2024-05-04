@@ -99,10 +99,10 @@ func (f *FileStore) Write(slug string, originalURL string, userID string) error 
 	return nil
 }
 
-func (f *FileStore) GetUserURLs(userID string) (map[string]string, error) {
+func (f *FileStore) GetUserURLs(userID string) map[string]string {
 	userURLs, ok := f.data[userID]
 	if !ok {
-		return nil, storage.ErrorUnknownUserProvided
+		return make(map[string]string)
 	}
-	return userURLs, nil
+	return userURLs
 }

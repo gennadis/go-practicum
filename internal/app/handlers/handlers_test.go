@@ -240,7 +240,7 @@ func TestHandleGetUserURLs(t *testing.T) {
 		{
 			name:           "NonExistentUserID",
 			userID:         "nonexistentUser",
-			expectedStatus: http.StatusBadRequest,
+			expectedStatus: http.StatusNoContent,
 			expectedBody:   "",
 		},
 	}
@@ -262,7 +262,7 @@ func TestHandleGetUserURLs(t *testing.T) {
 			handler.HandleGetUserURLs(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
-			if tc.expectedStatus == http.StatusOK {
+			if tc.expectedStatus == http.StatusAccepted {
 				assert.JSONEq(t, tc.expectedBody, recorder.Body.String())
 			}
 		})

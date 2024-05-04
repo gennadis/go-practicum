@@ -146,22 +146,14 @@ func TestFileStore_GetUserURLs(t *testing.T) {
 		"key2": "https://example2.com",
 	}
 
-	// Write data to the store
 	for key, value := range data {
 		if err := store.Write(key, value, "userID"); err != nil {
 			t.Fatalf("Error writing to store: %v", err)
 		}
 	}
 
-	// Execute GetUserURLs method
-	urls, err := store.GetUserURLs("userID")
+	urls := store.GetUserURLs("userID")
 
-	// Check for any errors
-	if err != nil {
-		t.Fatalf("Error getting user URLs: %v", err)
-	}
-
-	// Check if URLs map matches expectation
 	if !reflect.DeepEqual(urls, data) {
 		t.Errorf("Expected URLs %+v, got %+v", data, urls)
 	}

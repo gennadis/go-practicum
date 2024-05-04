@@ -45,10 +45,10 @@ func (m *MemStore) Write(slug string, originalURL string, userID string) error {
 	return nil
 }
 
-func (m *MemStore) GetUserURLs(userID string) (map[string]string, error) {
+func (m *MemStore) GetUserURLs(userID string) map[string]string {
 	userURLs, ok := m.data[userID]
 	if !ok {
-		return nil, storage.ErrorUnknownUserProvided
+		return make(map[string]string)
 	}
-	return userURLs, nil
+	return userURLs
 }

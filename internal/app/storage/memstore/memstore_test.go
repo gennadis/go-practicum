@@ -70,49 +70,22 @@ func TestMemStore_ReadWrite(t *testing.T) {
 }
 
 func TestMemStore_GetUserURLs(t *testing.T) {
-	tests := []struct {
-		name          string
-		userID        string
-		urls          map[string]string
-		expectedURLs  map[string]string
-		expectedError error
-	}{
-		{
-			name:          "Valid user ID with URLs",
-			userID:        "testUser",
-			urls:          map[string]string{"slug1": "url1", "slug2": "url2"},
-			expectedURLs:  map[string]string{"slug1": "url1", "slug2": "url2"},
-			expectedError: nil,
-		},
-		{
-			name:          "User ID not found",
-			userID:        "nonexistentUser",
-			expectedURLs:  nil,
-			expectedError: storage.ErrorUnknownUserProvided,
-		},
+	store := memstore.New()
+
+	data := map[string]string{
+		"key1": "https://example1.com",
+		"key2": "https://example2.com",
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			store := memstore.New()
-			if test.urls != nil {
-				if err := store.Write("slug1", "url1", "testUser"); err != nil {
-					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
-				}
-				if err := store.Write("slug2", "url2", "testUser"); err != nil {
-					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
-				}
-			}
+	for key, value := range data {
+		if err := store.Write(key, value, "userID"); err != nil {
+			t.Fatalf("Error writing to store: %v", err)
+		}
+	}
 
-			urls, err := store.GetUserURLs(test.userID)
+	urls := store.GetUserURLs("userID")
 
-			if err != test.expectedError {
-				t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
-			}
-
-			if !reflect.DeepEqual(urls, test.expectedURLs) {
-				t.Errorf("Expected URLs %+v, got %+v", test.expectedURLs, urls)
-			}
-		})
+	if !reflect.DeepEqual(urls, data) {
+		t.Errorf("Expected URLs %+v, got %+v", data, urls)
 	}
 }

@@ -183,12 +183,7 @@ func (rh *RequestHandler) HandleGetUserURLs(w http.ResponseWriter, r *http.Reque
 	}
 	log.Printf("urls for user %s requested", userID)
 
-	userURLs, err := rh.storage.GetUserURLs(userID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		log.Print(err.Error())
-		return
-	}
+	userURLs := rh.storage.GetUserURLs(userID)
 	log.Printf("urls for user %s found: %s", userID, userURLs)
 
 	if len(userURLs) == 0 {
