@@ -2,16 +2,18 @@ package middlewares
 
 import (
 	"compress/gzip"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"strings"
 
 	"github.com/google/uuid"
+
+	"github.com/gennadis/shorturl/internal/app/handlers"
 )
 
 const (
@@ -31,7 +33,7 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 func GzipReceiverMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(strings.ToLower(r.Header.Get("Content-Encoding")), "gzip") {
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(r.Context()))
 			return
 		}
 
@@ -42,21 +44,21 @@ func GzipReceiverMiddleware(next http.Handler) http.Handler {
 		}
 		defer uncompressed.Close()
 		r.Body = uncompressed
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w, r.WithContext(r.Context()))
 	})
 }
 
 func GzipSenderMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(r.Context()))
 			return
 		}
 
 		compressed := gzip.NewWriter(w)
 		defer compressed.Close()
 		w.Header().Set("Content-Encoding", "gzip")
-		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: compressed}, r)
+		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: compressed}, r.WithContext(r.Context()))
 	})
 }
 
@@ -65,9 +67,8 @@ func CookieAuthMiddleware(next http.Handler) http.Handler {
 		cookie, err := r.Cookie(cookieName)
 
 		if err == http.ErrNoCookie || !isValidCookie(cookie) {
-			userID := uuid.New()
-
-			cookieValue := signCookie(userID.String())
+			userID := uuid.NewString()
+			cookieValue := signCookie(userID)
 			newCookie := http.Cookie{
 				Name:  cookieName,
 				Value: cookieValue,
@@ -76,11 +77,21 @@ func CookieAuthMiddleware(next http.Handler) http.Handler {
 			http.SetCookie(w, &newCookie)
 			log.Println("new cookie is set")
 
-			next.ServeHTTP(w, r)
+			ctx := context.WithValue(r.Context(), handlers.UserIDContextKey, userID)
+			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 		log.Println("cookie is valid")
-		next.ServeHTTP(w, r)
+
+		decodedCookie, err := base64.StdEncoding.DecodeString(cookie.Value)
+		if err != nil || len(decodedCookie) < sha256.Size {
+			log.Println("error decoding cookie userID value")
+			next.ServeHTTP(w, r)
+			return
+		}
+		cookieValue := decodedCookie[:len(decodedCookie)-sha256.Size]
+		ctx := context.WithValue(r.Context(), handlers.UserIDContextKey, string(cookieValue))
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
@@ -92,7 +103,6 @@ func signCookie(value string) string {
 	signedValue := append([]byte(value), signature...)
 
 	encodedValue := base64.StdEncoding.EncodeToString(signedValue)
-	fmt.Println(encodedValue)
 
 	return encodedValue
 }

@@ -10,7 +10,9 @@ import (
 	"github.com/gennadis/shorturl/internal/app/storage"
 )
 
-const testUser = "testUser" // TODO: store userID in cookie
+type contextKey string
+
+const UserIDContextKey contextKey = "userID"
 
 const (
 	JSONContentType      = "application/json"
@@ -46,7 +48,22 @@ func NewRequestHandler(storage storage.Repository, baseURL string) *RequestHandl
 	}
 }
 
+func getUserIDFromContext(r *http.Request) (string, error) {
+	userID, ok := r.Context().Value(UserIDContextKey).(string)
+	if !ok {
+		return "", errors.New("userID not found in context")
+	}
+	return userID, nil
+}
+
 func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	defer r.Body.Close()
 	originalURL, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -62,7 +79,7 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 	shortURL := rh.baseURL + "/" + slug
 	log.Printf("original url %s, shortened url: %s", originalURL, shortURL)
 
-	if err := rh.storage.Write(slug, string(originalURL), testUser); err != nil {
+	if err := rh.storage.Write(slug, string(originalURL), userID); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		log.Print(err.Error())
 		return
@@ -76,6 +93,13 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 }
 
 func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	defer r.Body.Close()
 	reqBody, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -99,7 +123,7 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 	shortURL := rh.baseURL + "/" + slug
 	log.Printf("original url %s, shortened url: %s", shortenReq.URL, shortURL)
 
-	if err := rh.storage.Write(slug, string(shortenReq.URL), testUser); err != nil {
+	if err := rh.storage.Write(slug, string(shortenReq.URL), userID); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Println("error writing to storage:", err)
 		return
@@ -123,10 +147,17 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 }
 
 func (rh *RequestHandler) HandleExpandURL(w http.ResponseWriter, r *http.Request) {
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	slug := r.URL.Path[1:]
 	log.Printf("originalURL for slug %s requested", slug)
 
-	originalURL, err := rh.storage.Read(slug, testUser)
+	originalURL, err := rh.storage.Read(slug, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		log.Print(err.Error())
@@ -144,10 +175,15 @@ func (rh *RequestHandler) HandleNotFound(w http.ResponseWriter, r *http.Request)
 }
 
 func (rh *RequestHandler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
-	userID := testUser
+	userID, err := getUserIDFromContext(r)
+	if err != nil {
+		log.Printf("Error: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	log.Printf("urls for user %s requested", userID)
 
-	userURLs, err := rh.storage.GetUserURLs(testUser)
+	userURLs, err := rh.storage.GetUserURLs(userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		log.Print(err.Error())
