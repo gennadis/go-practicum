@@ -108,7 +108,7 @@ func TestSignCookie(t *testing.T) {
 	}{
 		{
 			name:  "UUID string",
-			value: uuid.New().String(),
+			value: uuid.NewString(),
 		},
 		{
 			name:  "Empty string",

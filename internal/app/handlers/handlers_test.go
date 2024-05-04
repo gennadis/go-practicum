@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,7 @@ import (
 
 const (
 	baseURL = "http://localhost:8080"
+	userID  = "testUserID"
 )
 
 func TestHandleShortenURL(t *testing.T) {
@@ -50,7 +52,8 @@ func TestHandleShortenURL(t *testing.T) {
 			assert.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
-			handler.HandleShortenURL(recorder, req)
+			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+			handler.HandleShortenURL(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
 			assert.Contains(t, recorder.Body.String(), tc.expectedBody)
@@ -120,7 +123,8 @@ func TestHandleJSONShortenURL(t *testing.T) {
 			assert.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
-			handler.HandleJSONShortenURL(recorder, req)
+			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+			handler.HandleJSONShortenURL(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
 			assert.Equal(t, tc.expectedContentType, recorder.Header().Get("Content-Type"))
@@ -142,26 +146,23 @@ func TestHandleExpandURL(t *testing.T) {
 	tests := []struct {
 		name           string
 		slug           string
-		userID         string
 		expectedStatus int
 	}{
 		{
 			name:           "ValidSlug",
-			slug:           "abc123",
-			userID:         "testUser",
+			slug:           "testSlug",
 			expectedStatus: http.StatusTemporaryRedirect,
 		},
 		{
 			name:           "NonExistentSlug",
 			slug:           "nonexistent",
-			userID:         "testUser",
 			expectedStatus: http.StatusBadRequest,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := memstore.New()
-			if err := memStorage.Write("abc123", "https://example.com", "testUser"); err != nil {
+			if err := memStorage.Write("testSlug", "https://example.com", userID); err != nil {
 				t.Fatalf("memstore write error")
 			}
 			handler := NewRequestHandler(memStorage, baseURL)
@@ -170,7 +171,8 @@ func TestHandleExpandURL(t *testing.T) {
 			assert.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
-			handler.HandleExpandURL(recorder, req)
+			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+			handler.HandleExpandURL(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
 
@@ -212,7 +214,8 @@ func TestDefaultHandler(t *testing.T) {
 			assert.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
-			handler.HandleNotFound(recorder, req)
+			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+			handler.HandleNotFound(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
 			assert.Equal(t, strings.TrimSpace(ErrorInvalidRequest.Error()), strings.TrimSpace(recorder.Body.String()))
@@ -230,7 +233,7 @@ func TestHandleGetUserURLs(t *testing.T) {
 	}{
 		{
 			name:           "ValidUserID",
-			userID:         "testUser",
+			userID:         userID,
 			expectedStatus: http.StatusOK,
 			expectedBody:   `[{"short_url":"abc123","original_url":"https://example.com"}]`,
 		},
@@ -244,8 +247,8 @@ func TestHandleGetUserURLs(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := memstore.New()
-			if tc.userID == "testUser" {
-				if err := memStorage.Write("abc123", "https://example.com", "testUser"); err != nil {
+			if tc.userID == userID {
+				if err := memStorage.Write("abc123", "https://example.com", userID); err != nil {
 					t.Fatalf("memstore write error")
 				}
 			}
@@ -255,7 +258,8 @@ func TestHandleGetUserURLs(t *testing.T) {
 			assert.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
-			handler.HandleGetUserURLs(recorder, req)
+			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+			handler.HandleGetUserURLs(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
 			if tc.expectedStatus == http.StatusOK {
