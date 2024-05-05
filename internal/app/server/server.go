@@ -55,5 +55,6 @@ func (s *Server) MountHandlers() {
 	s.Router.Get("/api/user/urls", reqHandler.HandleGetUserURLs)
 	s.Router.Post("/", reqHandler.HandleShortenURL)
 	s.Router.Post("/api/shorten", reqHandler.HandleJSONShortenURL)
+	s.Router.Get("/ping", reqHandler.HandleDatabasePing)
 	s.Router.NotFound(reqHandler.HandleNotFound)
 }
