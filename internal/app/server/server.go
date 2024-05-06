@@ -1,7 +1,7 @@
 package server
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/gennadis/shorturl/internal/app/config"
 	"github.com/gennadis/shorturl/internal/app/handlers"
@@ -10,37 +10,40 @@ import (
 
 	"github.com/gennadis/shorturl/internal/app/storage/filestore"
 	"github.com/gennadis/shorturl/internal/app/storage/memstore"
+	"github.com/gennadis/shorturl/internal/app/storage/postgres"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
 type Server struct {
-	Storage storage.Repository
+	Storage storage.Storage
 	Router  *chi.Mux
 	Config  config.Config
 }
 
-func New(config config.Config) *Server {
+func New(config config.Config) (*Server, error) {
+	storage, err := createStorage(config)
+	if err != nil {
+		return nil, fmt.Errorf("error creating Storage %v", err)
+	}
 	s := &Server{
-		Storage: createStorage(config),
+		Storage: storage,
 		Router:  chi.NewRouter(),
 		Config:  config,
 	}
-	return s
+	return s, nil
 }
 
-func createStorage(config config.Config) storage.Repository {
-	if config.FileStoragePath == "" {
-		return memstore.New()
+func createStorage(config config.Config) (storage.Storage, error) {
+	if config.DatabaseDSN != "" {
+		return postgres.New(config.DatabaseDSN)
 	}
 
-	serverStorage, err := filestore.New(config.FileStoragePath)
-	if err != nil {
-		log.Printf("error creating file storage: %v", err)
-		return memstore.New()
+	if path := config.FileStoragePath; path != "" {
+		return filestore.New(path)
 	}
 
-	return serverStorage
+	return memstore.New(), nil
 }
 
 func (s *Server) MountHandlers() {

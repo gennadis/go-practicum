@@ -106,3 +106,7 @@ func (f *FileStore) GetUserURLs(userID string) map[string]string {
 	}
 	return userURLs
 }
+
+func (f *FileStore) Ping() error {
+	return nil
+}

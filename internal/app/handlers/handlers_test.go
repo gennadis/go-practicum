@@ -11,7 +11,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/gennadis/shorturl/internal/app/storage"
 	"github.com/gennadis/shorturl/internal/app/storage/memstore"
+	"github.com/gennadis/shorturl/internal/app/storage/postgres"
 )
 
 const (
@@ -265,6 +267,41 @@ func TestHandleGetUserURLs(t *testing.T) {
 			if tc.expectedStatus == http.StatusAccepted {
 				assert.JSONEq(t, tc.expectedBody, recorder.Body.String())
 			}
+		})
+	}
+}
+
+func TestHandleDatabasePing(t *testing.T) {
+	testPostgresStore, _ := postgres.New("")
+
+	tests := []struct {
+		name           string
+		storage        storage.Storage
+		expectedStatus int
+	}{
+		{
+			name:           "Database Ping Success",
+			storage:        memstore.New(),
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "Database Ping Error",
+			storage:        testPostgresStore,
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := NewRequestHandler(tc.storage, baseURL)
+
+			req, err := http.NewRequest("GET", "/ping", nil)
+			assert.NoError(t, err)
+
+			recorder := httptest.NewRecorder()
+			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+			handler.HandleDatabasePing(recorder, req.WithContext(ctx))
+
+			assert.Equal(t, tc.expectedStatus, recorder.Code)
 		})
 	}
 }

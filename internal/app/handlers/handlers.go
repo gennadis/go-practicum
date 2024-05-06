@@ -1,15 +1,11 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"log"
 	"net/http"
-	"time"
-
-	"github.com/jackc/pgx/v5"
 
 	"github.com/gennadis/shorturl/internal/app/storage"
 )
@@ -41,11 +37,11 @@ type UserURL struct {
 }
 
 type RequestHandler struct {
-	storage storage.Repository
+	storage storage.Storage
 	baseURL string
 }
 
-func NewRequestHandler(storage storage.Repository, baseURL string) *RequestHandler {
+func NewRequestHandler(storage storage.Storage, baseURL string) *RequestHandler {
 	return &RequestHandler{
 		storage: storage,
 		baseURL: baseURL,
@@ -217,21 +213,10 @@ func (rh *RequestHandler) HandleGetUserURLs(w http.ResponseWriter, r *http.Reque
 }
 
 func (rh *RequestHandler) HandleDatabasePing(w http.ResponseWriter, r *http.Request) {
-	conn, err := pgx.Connect(context.Background(), "postgres://shorturl:mysecretpassword@127.0.0.1:5432/urls")
-	if err != nil {
-		log.Printf("Unable to connect to database: %v\n", err)
+	if err := rh.storage.Ping(); err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
+		log.Printf("database ping error: %s", err)
 	}
-	defer conn.Close(context.Background())
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
-	if err := conn.Ping(ctx); err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-	}
-
 	w.WriteHeader(http.StatusOK)
-
+	log.Println("database ping ok")
 }

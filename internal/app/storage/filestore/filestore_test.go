@@ -158,3 +158,21 @@ func TestFileStore_GetUserURLs(t *testing.T) {
 		t.Errorf("Expected URLs %+v, got %+v", data, urls)
 	}
 }
+
+func TestFileStore_Ping(t *testing.T) {
+	tmpfile, err := os.CreateTemp("", "test_file_store")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+	tmpfile.Close()
+
+	store, err := filestore.New(tmpfile.Name())
+	if err != nil {
+		t.Fatalf("Error creating file store: %v", err)
+	}
+
+	if err := store.Ping(); err != nil {
+		t.Errorf("Expected ping err nil, got err %s", err)
+	}
+}

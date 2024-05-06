@@ -38,7 +38,7 @@ func TestSetConfig(t *testing.T) {
 			expectedServer:      "localhost:8080",
 			expectedBaseURL:     "http://localhost:8080",
 			expectedFileStore:   "local_storage.json",
-			expectedDatabaseDSN: "postgres://shorturl:mysecretpassword@127.0.0.1:5432/urls",
+			expectedDatabaseDSN: "",
 		},
 	}
 
@@ -95,7 +95,7 @@ func TestSetConfigWithFlags(t *testing.T) {
 			expectedServer:      "localhost:8080",
 			expectedBaseURL:     "http://localhost:8080",
 			expectedFile:        "local_storage.json",
-			expectedDatabaseDSN: "postgres://shorturl:mysecretpassword@127.0.0.1:5432/urls",
+			expectedDatabaseDSN: "",
 		},
 	}
 
