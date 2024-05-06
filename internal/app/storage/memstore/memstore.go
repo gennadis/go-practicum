@@ -52,3 +52,7 @@ func (m *MemStore) GetUserURLs(userID string) map[string]string {
 	}
 	return userURLs
 }
+
+func (m *MemStore) Ping() error {
+	return nil
+}

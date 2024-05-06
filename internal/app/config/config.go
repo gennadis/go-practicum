@@ -9,6 +9,7 @@ type Config struct {
 	ServerAddr      string
 	BaseURL         string
 	FileStoragePath string
+	DatabaseDSN     string
 }
 
 func SetConfig() Config {
@@ -16,6 +17,7 @@ func SetConfig() Config {
 		ServerAddr:      os.Getenv("SERVER_ADDRESS"),
 		BaseURL:         os.Getenv("BASE_URL"),
 		FileStoragePath: os.Getenv("FILE_STORAGE_PATH"),
+		DatabaseDSN:     os.Getenv("DATABASE_DSN"),
 	}
 	if config.ServerAddr == "" {
 		flag.StringVar(&config.ServerAddr, "a", "localhost:8080", "server address")
@@ -26,7 +28,13 @@ func SetConfig() Config {
 	if config.FileStoragePath == "" {
 		flag.StringVar(&config.FileStoragePath, "f", "local_storage.json", "file storage path")
 	}
+	if config.DatabaseDSN == "" {
+		flag.StringVar(&config.DatabaseDSN, "d", "", "postgres dsn")
+	}
 	flag.Parse()
 
 	return config
 }
+
+// postgres://shorturl:mysecretpassword@127.0.0.1:5432/urls
+// docker run --name shorturl-pg -p 5432:5432 -e POSTGRES_USER=shorturl -e POSTGRES_PASSWORD=mysecretpassword -e POSTGRES_DB=urls -d postgres

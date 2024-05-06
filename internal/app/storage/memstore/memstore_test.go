@@ -89,3 +89,11 @@ func TestMemStore_GetUserURLs(t *testing.T) {
 		t.Errorf("Expected URLs %+v, got %+v", data, urls)
 	}
 }
+
+func TestMemStore_Ping(t *testing.T) {
+	store := memstore.New()
+
+	if err := store.Ping(); err != nil {
+		t.Errorf("Expected ping err nil, got err %s", err)
+	}
+}

@@ -10,7 +10,10 @@ import (
 
 func main() {
 	config := config.SetConfig()
-	server := server.New(config)
+	server, err := server.New(config)
+	if err != nil {
+		log.Fatalf("Server init err: %v err", err)
+	}
 	server.MountHandlers()
 	log.Fatal(http.ListenAndServe(server.Config.ServerAddr, server.Router))
 }

@@ -37,11 +37,11 @@ type UserURL struct {
 }
 
 type RequestHandler struct {
-	storage storage.Repository
+	storage storage.Storage
 	baseURL string
 }
 
-func NewRequestHandler(storage storage.Repository, baseURL string) *RequestHandler {
+func NewRequestHandler(storage storage.Storage, baseURL string) *RequestHandler {
 	return &RequestHandler{
 		storage: storage,
 		baseURL: baseURL,
@@ -210,4 +210,13 @@ func (rh *RequestHandler) HandleGetUserURLs(w http.ResponseWriter, r *http.Reque
 		log.Println("error writing response:", err)
 		return
 	}
+}
+
+func (rh *RequestHandler) HandleDatabasePing(w http.ResponseWriter, r *http.Request) {
+	if err := rh.storage.Ping(); err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		log.Printf("database ping error: %s", err)
+	}
+	w.WriteHeader(http.StatusOK)
+	log.Println("database ping ok")
 }
