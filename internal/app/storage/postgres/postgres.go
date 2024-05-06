@@ -2,7 +2,7 @@ package postgres
 
 import (
 	"database/sql"
-	"log"
+	"fmt"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -14,26 +14,25 @@ type PostgresStore struct {
 func New(postgresDSN string) (*PostgresStore, error) {
 	db, err := sql.Open("pgx", postgresDSN)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to PostgreSQL: %w", err)
 	}
-	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS users (
-			user_id UUID PRIMARY KEY
-		);`,
-	); err != nil {
-		log.Printf("users table creation error: %s", err)
-	}
-
-	if _, err := db.Exec(`
-		CREATE TABLE urls (
-			user_id UUID NOT NULL,
-			slug VARCHAR(255) NOT NULL,
+	queries := []string{
+		// app_user table
+		`CREATE TABLE IF NOT EXISTS app_user (
+			uuid VARCHAR(36) PRIMARY KEY
+			);`,
+		// url table
+		`CREATE TABLE IF NOT EXISTS url (
+			id SERIAL PRIMARY KEY,
+			slug VARCHAR(20) UNIQUE NOT NULL,
 			original_url VARCHAR(2048) NOT NULL,
-			PRIMARY KEY (slug),
-			FOREIGN KEY (user_id) REFERENCES users(user_id)
+			user_uuid VARCHAR(36) REFERENCES app_user(uuid)
 		);`,
-	); err != nil {
-		log.Printf("urls table creation error: %s", err)
+	}
+	for _, query := range queries {
+		if _, err := db.Exec(query); err != nil {
+			return nil, fmt.Errorf("failed to create table: %w", err)
+		}
 	}
 	return &PostgresStore{db: db}, nil
 }
