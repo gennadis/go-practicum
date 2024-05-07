@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/gennadis/shorturl/internal/app/config"
 	"github.com/gennadis/shorturl/internal/app/handlers"
@@ -36,13 +37,15 @@ func New(config config.Config) (*Server, error) {
 
 func createStorage(config config.Config) (storage.Storage, error) {
 	if config.DatabaseDSN != "" {
+		log.Println("using database as a storage")
 		return postgres.New(config.DatabaseDSN)
 	}
 
 	if path := config.FileStoragePath; path != "" {
+		log.Println("using filestore as a storage")
 		return filestore.New(path)
 	}
-
+	log.Println("using memory as a storage")
 	return memstore.New(), nil
 }
 
