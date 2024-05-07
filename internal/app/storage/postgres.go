@@ -1,4 +1,4 @@
-package postgres
+package storage
 
 import (
 	"database/sql"
@@ -12,7 +12,7 @@ type PostgresStore struct {
 	db *sql.DB
 }
 
-func New(postgresDSN string) (*PostgresStore, error) {
+func NewPostgresStorage(postgresDSN string) (*PostgresStore, error) {
 	db, err := sql.Open("pgx", postgresDSN)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %w", err)
@@ -33,7 +33,7 @@ func New(postgresDSN string) (*PostgresStore, error) {
 	return &PostgresStore{db: db}, nil
 }
 
-func (p *PostgresStore) Read(slug string, userID string) (string, error) {
+func (p *PostgresStore) GetURL(slug string, userID string) (string, error) {
 	var originalURL string
 	err := p.db.QueryRow(`
 		SELECT original_url
@@ -48,7 +48,7 @@ func (p *PostgresStore) Read(slug string, userID string) (string, error) {
 	return originalURL, nil
 }
 
-func (p *PostgresStore) Write(slug string, originalURL string, userID string) error {
+func (p *PostgresStore) AddURL(slug string, originalURL string, userID string) error {
 	_, err := p.db.Exec(`
 		INSERT INTO url
 		(slug, original_url, user_uuid)
@@ -61,7 +61,7 @@ func (p *PostgresStore) Write(slug string, originalURL string, userID string) er
 	return nil
 }
 
-func (p *PostgresStore) GetUserURLs(userID string) map[string]string {
+func (p *PostgresStore) GetURLsByUser(userID string) map[string]string {
 	urls := make(map[string]string)
 
 	rows, err := p.db.Query(`

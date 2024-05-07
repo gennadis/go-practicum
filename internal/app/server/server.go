@@ -1,66 +1,45 @@
 package server
 
 import (
-	"fmt"
-	"log"
-
 	"github.com/gennadis/shorturl/internal/app/config"
 	"github.com/gennadis/shorturl/internal/app/handlers"
 	"github.com/gennadis/shorturl/internal/app/middlewares"
 	"github.com/gennadis/shorturl/internal/app/storage"
 
-	"github.com/gennadis/shorturl/internal/app/storage/filestore"
-	"github.com/gennadis/shorturl/internal/app/storage/memstore"
-	"github.com/gennadis/shorturl/internal/app/storage/postgres"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
 type Server struct {
-	Storage storage.Storage
 	Router  *chi.Mux
+	Storage storage.Storage
 	Config  config.Configuration
 }
 
-func New(config config.Configuration) (*Server, error) {
-	storage, err := createStorage(config)
-	if err != nil {
-		return nil, fmt.Errorf("error creating Storage %v", err)
-	}
-	s := &Server{
-		Storage: storage,
+func NewServer(config config.Configuration, storage storage.Storage) *Server {
+	return &Server{
 		Router:  chi.NewRouter(),
+		Storage: storage,
 		Config:  config,
 	}
-	return s, nil
-}
-
-func createStorage(config config.Configuration) (storage.Storage, error) {
-	if config.DatabaseDSN != "" {
-		log.Println("using database as a storage")
-		return postgres.New(config.DatabaseDSN)
-	}
-
-	if path := config.FileStoragePath; path != "" {
-		log.Println("using filestore as a storage")
-		return filestore.New(path)
-	}
-	log.Println("using memory as a storage")
-	return memstore.New(), nil
 }
 
 func (s *Server) MountHandlers() {
 	reqHandler := handlers.NewRequestHandler(s.Storage, s.Config.BaseURL)
 
-	s.Router.Use(middleware.Logger)
-	s.Router.Use(middlewares.CookieAuthMiddleware)
-	s.Router.Use(middlewares.GzipReceiverMiddleware)
-	s.Router.Use(middlewares.GzipSenderMiddleware)
+	s.Router.Use(
+		middleware.Logger,
+		middlewares.CookieAuthMiddleware,
+		middlewares.GzipReceiverMiddleware,
+		middlewares.GzipSenderMiddleware,
+	)
 
 	s.Router.Get("/{slug}", reqHandler.HandleExpandURL)
 	s.Router.Get("/api/user/urls", reqHandler.HandleGetUserURLs)
+	s.Router.Get("/ping", reqHandler.HandleDatabasePing)
+
 	s.Router.Post("/", reqHandler.HandleShortenURL)
 	s.Router.Post("/api/shorten", reqHandler.HandleJSONShortenURL)
-	s.Router.Get("/ping", reqHandler.HandleDatabasePing)
+
 	s.Router.NotFound(reqHandler.HandleNotFound)
 }

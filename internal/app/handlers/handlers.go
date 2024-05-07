@@ -79,7 +79,7 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 	shortURL := rh.baseURL + "/" + slug
 	log.Printf("original url %s, shortened url: %s", originalURL, shortURL)
 
-	if err := rh.storage.Write(slug, string(originalURL), userID); err != nil {
+	if err := rh.storage.AddURL(slug, string(originalURL), userID); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		log.Print(err.Error())
 		return
@@ -123,7 +123,7 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 	shortURL := rh.baseURL + "/" + slug
 	log.Printf("original url %s, shortened url: %s", shortenReq.URL, shortURL)
 
-	if err := rh.storage.Write(slug, string(shortenReq.URL), userID); err != nil {
+	if err := rh.storage.AddURL(slug, string(shortenReq.URL), userID); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Println("error writing to storage:", err)
 		return
@@ -157,7 +157,7 @@ func (rh *RequestHandler) HandleExpandURL(w http.ResponseWriter, r *http.Request
 	slug := r.URL.Path[1:]
 	log.Printf("originalURL for slug %s requested", slug)
 
-	originalURL, err := rh.storage.Read(slug, userID)
+	originalURL, err := rh.storage.GetURL(slug, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		log.Print(err.Error())
@@ -183,7 +183,7 @@ func (rh *RequestHandler) HandleGetUserURLs(w http.ResponseWriter, r *http.Reque
 	}
 	log.Printf("urls for user %s requested", userID)
 
-	userURLs := rh.storage.GetUserURLs(userID)
+	userURLs := rh.storage.GetURLsByUser(userID)
 	log.Printf("urls for user %s found: %s", userID, userURLs)
 
 	if len(userURLs) == 0 {

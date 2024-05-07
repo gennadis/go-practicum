@@ -6,14 +6,16 @@ import (
 
 	"github.com/gennadis/shorturl/internal/app/config"
 	"github.com/gennadis/shorturl/internal/app/server"
+	"github.com/gennadis/shorturl/internal/app/storage"
 )
 
 func main() {
 	config := config.NewConfiguration()
-	server, err := server.New(config)
+	storage, err := storage.NewStorage(config)
 	if err != nil {
-		log.Fatalf("Server init err: %v err", err)
+		log.Printf("error creating new storage %v", err)
 	}
+	server := server.NewServer(config, storage)
 	server.MountHandlers()
 	log.Fatal(http.ListenAndServe(server.Config.ServerAddress, server.Router))
 }
