@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"log"
 
@@ -20,10 +21,10 @@ type Storage interface {
 	Ping() error
 }
 
-func NewStorage(config config.Configuration) (Storage, error) {
+func NewStorage(ctx context.Context, config config.Configuration) (Storage, error) {
 	if config.DatabaseDSN != "" {
 		log.Println("initializing storage: Database storage selected")
-		return NewPostgresStorage(config.DatabaseDSN)
+		return NewPostgresStorage(ctx, config.DatabaseDSN)
 	}
 
 	if path := config.FileStoragePath; path != "" {

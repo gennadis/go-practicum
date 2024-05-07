@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -9,10 +10,11 @@ import (
 )
 
 type PostgresStore struct {
-	db *sql.DB
+	db  *sql.DB
+	ctx context.Context
 }
 
-func NewPostgresStorage(postgresDSN string) (*PostgresStore, error) {
+func NewPostgresStorage(ctx context.Context, postgresDSN string) (*PostgresStore, error) {
 	db, err := sql.Open("pgx", postgresDSN)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %w", err)
@@ -26,16 +28,16 @@ func NewPostgresStorage(postgresDSN string) (*PostgresStore, error) {
 		);
 		`
 
-	if _, err := db.Exec(query); err != nil {
+	if _, err := db.ExecContext(ctx, query); err != nil {
 		return nil, fmt.Errorf("failed to create table: %w", err)
 	}
 
-	return &PostgresStore{db: db}, nil
+	return &PostgresStore{db: db, ctx: ctx}, nil
 }
 
 func (p *PostgresStore) GetURL(slug string, userID string) (string, error) {
 	var originalURL string
-	err := p.db.QueryRow(`
+	err := p.db.QueryRowContext(p.ctx, `
 		SELECT original_url
 		FROM url
 		WHERE slug = $1
@@ -49,7 +51,7 @@ func (p *PostgresStore) GetURL(slug string, userID string) (string, error) {
 }
 
 func (p *PostgresStore) AddURL(slug string, originalURL string, userID string) error {
-	_, err := p.db.Exec(`
+	_, err := p.db.ExecContext(p.ctx, `
 		INSERT INTO url
 		(slug, original_url, user_uuid)
 		VALUES ($1, $2, $3);
@@ -64,7 +66,7 @@ func (p *PostgresStore) AddURL(slug string, originalURL string, userID string) e
 func (p *PostgresStore) GetURLsByUser(userID string) map[string]string {
 	urls := make(map[string]string)
 
-	rows, err := p.db.Query(`
+	rows, err := p.db.QueryContext(p.ctx, `
 		SELECT slug, original_url
 		FROM url
 		WHERE user_uuid = $1
@@ -93,5 +95,5 @@ func (p *PostgresStore) GetURLsByUser(userID string) map[string]string {
 }
 
 func (p *PostgresStore) Ping() error {
-	return p.db.Ping()
+	return p.db.PingContext(p.ctx)
 }

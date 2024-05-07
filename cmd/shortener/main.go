@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 
@@ -10,12 +11,14 @@ import (
 )
 
 func main() {
-	config := config.NewConfiguration()
-	storage, err := storage.NewStorage(config)
+	cfg := config.NewConfiguration()
+	ctx := context.Background()
+	strg, err := storage.NewStorage(ctx, cfg)
 	if err != nil {
 		log.Printf("error creating new storage %v", err)
 	}
-	server := server.NewServer(config, storage)
-	server.MountHandlers()
-	log.Fatal(http.ListenAndServe(server.Config.ServerAddress, server.Router))
+	srv := server.NewServer(cfg, strg)
+	srv.MountHandlers()
+
+	log.Fatal(http.ListenAndServe(cfg.ServerAddress, srv.Router))
 }
