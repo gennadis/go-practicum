@@ -12,20 +12,20 @@ import (
 
 type Server struct {
 	Router  *chi.Mux
-	Storage storage.Storage
-	Config  config.Configuration
+	storage storage.Storage
+	config  config.Configuration
 }
 
 func NewServer(config config.Configuration, storage storage.Storage) *Server {
 	return &Server{
 		Router:  chi.NewRouter(),
-		Storage: storage,
-		Config:  config,
+		storage: storage,
+		config:  config,
 	}
 }
 
 func (s *Server) MountHandlers() {
-	reqHandler := handlers.NewRequestHandler(s.Storage, s.Config.BaseURL)
+	reqHandler := handlers.NewRequestHandler(s.storage, s.config.BaseURL)
 
 	s.Router.Use(
 		middleware.Logger,
@@ -40,5 +40,5 @@ func (s *Server) MountHandlers() {
 	s.Router.Post("/", reqHandler.HandleShortenURL)
 	s.Router.Post("/api/shorten", reqHandler.HandleJSONShortenURL)
 
-	s.Router.NotFound(reqHandler.HandleNotFound)
+	s.Router.MethodNotAllowed(reqHandler.HandleMethodNotAllowed)
 }

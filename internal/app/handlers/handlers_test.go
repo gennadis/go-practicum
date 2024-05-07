@@ -214,7 +214,7 @@ func TestDefaultHandler(t *testing.T) {
 
 			recorder := httptest.NewRecorder()
 			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
-			handler.HandleNotFound(recorder, req.WithContext(ctx))
+			handler.HandleMethodNotAllowed(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
 			assert.Equal(t, strings.TrimSpace(ErrorInvalidRequest.Error()), strings.TrimSpace(recorder.Body.String()))
