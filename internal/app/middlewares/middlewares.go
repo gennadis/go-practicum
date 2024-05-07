@@ -30,35 +30,28 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
-func GzipReceiverMiddleware(next http.Handler) http.Handler {
+func GzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(strings.ToLower(r.Header.Get("Content-Encoding")), "gzip") {
-			next.ServeHTTP(w, r)
-			return
+		// check if the request contains gzip-encoded data
+		if strings.Contains(strings.ToLower(r.Header.Get("Content-Encoding")), "gzip") {
+			uncompressed, err := gzip.NewReader(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			defer uncompressed.Close()
+			r.Body = uncompressed
 		}
 
-		uncompressed, err := gzip.NewReader(r.Body)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		// check if the client accepts gzip encoding in the response
+		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			compressed := gzip.NewWriter(w)
+			defer compressed.Close()
+			w.Header().Set("Content-Encoding", "gzip")
+			w = &gzipWriter{ResponseWriter: w, Writer: compressed}
 		}
-		defer uncompressed.Close()
-		r.Body = uncompressed
+
 		next.ServeHTTP(w, r)
-	})
-}
-
-func GzipSenderMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		compressed := gzip.NewWriter(w)
-		defer compressed.Close()
-		w.Header().Set("Content-Encoding", "gzip")
-		next.ServeHTTP(gzipWriter{ResponseWriter: w, Writer: compressed}, r)
 	})
 }
 
@@ -81,14 +74,14 @@ func CookieAuthMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
-		log.Println("cookie is valid")
 
 		cookieValue, _, err := decodeCookieValue(cookie)
 		if err != nil {
-			log.Println("error decoding cookie userID value:", err)
+			log.Printf("error decoding cookie userID value: %v", err)
 			next.ServeHTTP(w, r)
 			return
 		}
+		log.Printf("cookie validation successful for user: %s", string(cookieValue))
 
 		ctx := context.WithValue(r.Context(), handlers.UserIDContextKey, string(cookieValue))
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -98,10 +91,9 @@ func CookieAuthMiddleware(next http.Handler) http.Handler {
 func signCookie(value string) string {
 	mac := hmac.New(sha256.New, []byte(secretKey))
 	mac.Write([]byte(value))
+
 	signature := mac.Sum(nil)
-
 	signedValue := append([]byte(value), signature...)
-
 	encodedValue := base64.StdEncoding.EncodeToString(signedValue)
 
 	return encodedValue

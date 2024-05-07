@@ -30,8 +30,7 @@ func (s *Server) MountHandlers() {
 	s.Router.Use(
 		middleware.Logger,
 		middlewares.CookieAuthMiddleware,
-		middlewares.GzipReceiverMiddleware,
-		middlewares.GzipSenderMiddleware,
+		middlewares.GzipMiddleware,
 	)
 
 	s.Router.Get("/{slug}", reqHandler.HandleExpandURL)
