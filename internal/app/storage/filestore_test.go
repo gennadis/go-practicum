@@ -1,13 +1,10 @@
-package filestore_test
+package storage
 
 import (
 	"encoding/json"
 	"os"
 	"reflect"
 	"testing"
-
-	"github.com/gennadis/shorturl/internal/app/storage"
-	"github.com/gennadis/shorturl/internal/app/storage/filestore"
 )
 
 func TestFileStore_ReadWrite(t *testing.T) {
@@ -39,7 +36,7 @@ func TestFileStore_ReadWrite(t *testing.T) {
 			key:           "nonexistent",
 			userID:        "testUser",
 			expectedValue: "",
-			expectedError: storage.ErrorUnknownSlugProvided,
+			expectedError: ErrorSlugUnknown,
 		},
 		{
 			name:          "Empty key",
@@ -47,18 +44,18 @@ func TestFileStore_ReadWrite(t *testing.T) {
 			value:         "https://example.com",
 			userID:        "testUser",
 			expectedValue: "",
-			expectedError: storage.ErrorEmptySlugProvided,
+			expectedError: ErrorSlugEmpty,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			store, err := filestore.New(tmpfile.Name())
+			store, err := NewFileStorage(tmpfile.Name())
 			if err != nil {
 				t.Fatalf("Error creating file store: %v", err)
 			}
 
-			err = store.Write(test.key, test.value, test.userID)
+			err = store.AddURL(test.key, test.value, test.userID)
 			if err != nil {
 				if err != test.expectedError {
 					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
@@ -66,7 +63,7 @@ func TestFileStore_ReadWrite(t *testing.T) {
 				return
 			}
 
-			readValue, err := store.Read(test.key, test.userID)
+			readValue, err := store.GetURL(test.key, test.userID)
 			if err != nil {
 				if err != test.expectedError {
 					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
@@ -89,7 +86,7 @@ func TestFileStore_AppendData(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 	tmpfile.Close()
 
-	store, err := filestore.New(tmpfile.Name())
+	store, err := NewFileStorage(tmpfile.Name())
 	if err != nil {
 		t.Fatalf("Error creating file store: %v", err)
 	}
@@ -101,7 +98,7 @@ func TestFileStore_AppendData(t *testing.T) {
 	}
 
 	for key, value := range data {
-		if err := store.Write(key, value, "userID"); err != nil {
+		if err := store.AddURL(key, value, "userID"); err != nil {
 			t.Fatalf("Error writing to store: %v", err)
 		}
 	}
@@ -136,7 +133,7 @@ func TestFileStore_GetUserURLs(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 	tmpfile.Close()
 
-	store, err := filestore.New(tmpfile.Name())
+	store, err := NewFileStorage(tmpfile.Name())
 	if err != nil {
 		t.Fatalf("Error creating file store: %v", err)
 	}
@@ -147,12 +144,12 @@ func TestFileStore_GetUserURLs(t *testing.T) {
 	}
 
 	for key, value := range data {
-		if err := store.Write(key, value, "userID"); err != nil {
+		if err := store.AddURL(key, value, "userID"); err != nil {
 			t.Fatalf("Error writing to store: %v", err)
 		}
 	}
 
-	urls := store.GetUserURLs("userID")
+	urls := store.GetURLsByUser("userID")
 
 	if !reflect.DeepEqual(urls, data) {
 		t.Errorf("Expected URLs %+v, got %+v", data, urls)
@@ -167,7 +164,7 @@ func TestFileStore_Ping(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 	tmpfile.Close()
 
-	store, err := filestore.New(tmpfile.Name())
+	store, err := NewFileStorage(tmpfile.Name())
 	if err != nil {
 		t.Fatalf("Error creating file store: %v", err)
 	}

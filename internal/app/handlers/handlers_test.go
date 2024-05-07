@@ -9,9 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gennadis/shorturl/internal/app/storage"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/gennadis/shorturl/internal/app/storage/memstore"
 )
 
 const (
@@ -44,7 +43,7 @@ func TestHandleShortenURL(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			memStorage := memstore.New()
+			memStorage := storage.NewMemoryStorage()
 			handler := NewRequestHandler(memStorage, baseURL)
 
 			body := bytes.NewBufferString(tc.requestBody)
@@ -115,7 +114,7 @@ func TestHandleJSONShortenURL(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			memStorage := memstore.New()
+			memStorage := storage.NewMemoryStorage()
 			handler := NewRequestHandler(memStorage, baseURL)
 
 			body := bytes.NewBufferString(tc.requestBody)
@@ -161,8 +160,8 @@ func TestHandleExpandURL(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			memStorage := memstore.New()
-			if err := memStorage.Write("testSlug", "https://example.com", userID); err != nil {
+			memStorage := storage.NewMemoryStorage()
+			if err := memStorage.AddURL("testSlug", "https://example.com", userID); err != nil {
 				t.Fatalf("memstore write error")
 			}
 			handler := NewRequestHandler(memStorage, baseURL)
@@ -207,7 +206,7 @@ func TestDefaultHandler(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			memStorage := memstore.New()
+			memStorage := storage.NewMemoryStorage()
 			handler := NewRequestHandler(memStorage, baseURL)
 
 			req, err := http.NewRequest(tc.method, "/", nil)
@@ -215,7 +214,7 @@ func TestDefaultHandler(t *testing.T) {
 
 			recorder := httptest.NewRecorder()
 			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
-			handler.HandleNotFound(recorder, req.WithContext(ctx))
+			handler.HandleMethodNotAllowed(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
 			assert.Equal(t, strings.TrimSpace(ErrorInvalidRequest.Error()), strings.TrimSpace(recorder.Body.String()))
@@ -246,9 +245,9 @@ func TestHandleGetUserURLs(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			memStorage := memstore.New()
+			memStorage := storage.NewMemoryStorage()
 			if tc.userID == userID {
-				if err := memStorage.Write("abc123", "https://example.com", userID); err != nil {
+				if err := memStorage.AddURL("abc123", "https://example.com", userID); err != nil {
 					t.Fatalf("memstore write error")
 				}
 			}

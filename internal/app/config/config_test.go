@@ -49,10 +49,10 @@ func TestSetConfig(t *testing.T) {
 			os.Setenv("FILE_STORAGE_PATH", tt.envFileStorage)
 			os.Setenv("DATABASE_DSN", tt.envDatabaseDSN)
 
-			config := SetConfig()
+			config := NewConfiguration()
 
-			if config.ServerAddr != tt.expectedServer {
-				t.Errorf("Expected ServerAddr to be '%s', got '%s'", tt.expectedServer, config.ServerAddr)
+			if config.ServerAddress != tt.expectedServer {
+				t.Errorf("Expected ServerAddr to be '%s', got '%s'", tt.expectedServer, config.ServerAddress)
 			}
 
 			if config.BaseURL != tt.expectedBaseURL {
@@ -108,10 +108,10 @@ func TestSetConfigWithFlags(t *testing.T) {
 
 			os.Args = append([]string{"cmd"}, tt.args...)
 
-			config := SetConfig()
+			config := NewConfiguration()
 
-			if config.ServerAddr != tt.expectedServer {
-				t.Errorf("Expected ServerAddr to be '%s', got '%s'", tt.expectedServer, config.ServerAddr)
+			if config.ServerAddress != tt.expectedServer {
+				t.Errorf("Expected ServerAddr to be '%s', got '%s'", tt.expectedServer, config.ServerAddress)
 			}
 
 			if config.BaseURL != tt.expectedBaseURL {

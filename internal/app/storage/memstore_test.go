@@ -1,11 +1,8 @@
-package memstore_test
+package storage
 
 import (
 	"reflect"
 	"testing"
-
-	"github.com/gennadis/shorturl/internal/app/storage"
-	"github.com/gennadis/shorturl/internal/app/storage/memstore"
 )
 
 func TestMemStore_ReadWrite(t *testing.T) {
@@ -30,7 +27,7 @@ func TestMemStore_ReadWrite(t *testing.T) {
 			key:           "nonexistent",
 			userID:        "testUser",
 			expectedValue: "",
-			expectedError: storage.ErrorUnknownSlugProvided,
+			expectedError: ErrorSlugUnknown,
 		},
 		{
 			name:          "Empty key",
@@ -38,15 +35,15 @@ func TestMemStore_ReadWrite(t *testing.T) {
 			value:         "https://example.com",
 			userID:        "testUser",
 			expectedValue: "",
-			expectedError: storage.ErrorEmptySlugProvided,
+			expectedError: ErrorSlugEmpty,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			store := memstore.New()
+			store := NewMemoryStorage()
 
-			err := store.Write(test.key, test.value, test.userID)
+			err := store.AddURL(test.key, test.value, test.userID)
 			if err != nil {
 				if err != test.expectedError {
 					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
@@ -54,7 +51,7 @@ func TestMemStore_ReadWrite(t *testing.T) {
 				return
 			}
 
-			readValue, err := store.Read(test.key, test.userID)
+			readValue, err := store.GetURL(test.key, test.userID)
 			if err != nil {
 				if err != test.expectedError {
 					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
@@ -70,7 +67,7 @@ func TestMemStore_ReadWrite(t *testing.T) {
 }
 
 func TestMemStore_GetUserURLs(t *testing.T) {
-	store := memstore.New()
+	store := NewMemoryStorage()
 
 	data := map[string]string{
 		"key1": "https://example1.com",
@@ -78,12 +75,12 @@ func TestMemStore_GetUserURLs(t *testing.T) {
 	}
 
 	for key, value := range data {
-		if err := store.Write(key, value, "userID"); err != nil {
+		if err := store.AddURL(key, value, "userID"); err != nil {
 			t.Fatalf("Error writing to store: %v", err)
 		}
 	}
 
-	urls := store.GetUserURLs("userID")
+	urls := store.GetURLsByUser("userID")
 
 	if !reflect.DeepEqual(urls, data) {
 		t.Errorf("Expected URLs %+v, got %+v", data, urls)
@@ -91,7 +88,7 @@ func TestMemStore_GetUserURLs(t *testing.T) {
 }
 
 func TestMemStore_Ping(t *testing.T) {
-	store := memstore.New()
+	store := NewMemoryStorage()
 
 	if err := store.Ping(); err != nil {
 		t.Errorf("Expected ping err nil, got err %s", err)
