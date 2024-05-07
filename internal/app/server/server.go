@@ -19,10 +19,10 @@ import (
 type Server struct {
 	Storage storage.Storage
 	Router  *chi.Mux
-	Config  config.Config
+	Config  config.Configuration
 }
 
-func New(config config.Config) (*Server, error) {
+func New(config config.Configuration) (*Server, error) {
 	storage, err := createStorage(config)
 	if err != nil {
 		return nil, fmt.Errorf("error creating Storage %v", err)
@@ -35,7 +35,7 @@ func New(config config.Config) (*Server, error) {
 	return s, nil
 }
 
-func createStorage(config config.Config) (storage.Storage, error) {
+func createStorage(config config.Configuration) (storage.Storage, error) {
 	if config.DatabaseDSN != "" {
 		log.Println("using database as a storage")
 		return postgres.New(config.DatabaseDSN)
