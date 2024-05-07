@@ -19,14 +19,15 @@ func NewPostgresStorage(ctx context.Context, postgresDSN string) (*PostgresStore
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %w", err)
 	}
+
 	query := `
-		CREATE TABLE IF NOT EXISTS url (
-			id SERIAL PRIMARY KEY,
-			slug VARCHAR(20) UNIQUE NOT NULL,
-			original_url VARCHAR(2048) NOT NULL,
-			user_uuid VARCHAR(36) NOT NULL
-		);
-		`
+	CREATE TABLE IF NOT EXISTS url (
+		id SERIAL PRIMARY KEY,
+		slug VARCHAR(20) UNIQUE NOT NULL,
+		original_url VARCHAR(2048) NOT NULL,
+		user_uuid VARCHAR(36) NOT NULL
+	);
+	`
 
 	if _, err := db.ExecContext(ctx, query); err != nil {
 		return nil, fmt.Errorf("failed to create table: %w", err)
@@ -37,12 +38,14 @@ func NewPostgresStorage(ctx context.Context, postgresDSN string) (*PostgresStore
 
 func (p *PostgresStore) GetURL(slug string, userID string) (string, error) {
 	var originalURL string
-	err := p.db.QueryRowContext(p.ctx, `
-		SELECT original_url
-		FROM url
-		WHERE slug = $1
-	`, slug).Scan(&originalURL)
 
+	query := `
+	SELECT original_url
+	FROM url
+	WHERE slug = $1;
+	`
+
+	err := p.db.QueryRowContext(p.ctx, query, slug).Scan(&originalURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to read URL: slug %s, error: %w", slug, err)
 	}
@@ -51,12 +54,13 @@ func (p *PostgresStore) GetURL(slug string, userID string) (string, error) {
 }
 
 func (p *PostgresStore) AddURL(slug string, originalURL string, userID string) error {
-	_, err := p.db.ExecContext(p.ctx, `
-		INSERT INTO url
-		(slug, original_url, user_uuid)
-		VALUES ($1, $2, $3);
-	`, slug, originalURL, userID)
+	query := `
+	INSERT INTO url
+	(slug, original_url, user_uuid)
+	VALUES ($1, $2, $3);
+	`
 
+	_, err := p.db.ExecContext(p.ctx, query, slug, originalURL, userID)
 	if err != nil {
 		return fmt.Errorf("failed to add URL: %w", err)
 	}
@@ -66,11 +70,13 @@ func (p *PostgresStore) AddURL(slug string, originalURL string, userID string) e
 func (p *PostgresStore) GetURLsByUser(userID string) map[string]string {
 	urls := make(map[string]string)
 
-	rows, err := p.db.QueryContext(p.ctx, `
-		SELECT slug, original_url
-		FROM url
-		WHERE user_uuid = $1
-	`, userID)
+	query := `
+	SELECT slug, original_url
+	FROM url
+	WHERE user_uuid = $1
+	`
+
+	rows, err := p.db.QueryContext(p.ctx, query, userID)
 	if err != nil {
 		log.Printf("Error querying user URLs: %v", err)
 		return urls
@@ -91,7 +97,6 @@ func (p *PostgresStore) GetURLsByUser(userID string) map[string]string {
 	}
 
 	return urls
-
 }
 
 func (p *PostgresStore) Ping() error {
