@@ -39,6 +39,7 @@ func (s *Server) MountHandlers() {
 
 	s.Router.Post("/", reqHandler.HandleShortenURL)
 	s.Router.Post("/api/shorten", reqHandler.HandleJSONShortenURL)
+	s.Router.Post("/api/shorten/batch", reqHandler.HandleBatchJSONShortenURL)
 
 	s.Router.MethodNotAllowed(reqHandler.HandleMethodNotAllowed)
 }
