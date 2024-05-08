@@ -100,9 +100,12 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 				http.Error(w, ErrorInernalServer.Error(), http.StatusBadRequest)
 				return
 			}
+
+			shortURL := rh.baseURL + "/" + existingSlug
+
 			w.Header().Set("Content-Type", PlainTextContentType)
 			w.WriteHeader(http.StatusConflict)
-			if _, err := w.Write([]byte(existingSlug)); err != nil {
+			if _, err := w.Write([]byte(shortURL)); err != nil {
 				log.Println("error writing response:", err)
 			}
 			return
@@ -159,9 +162,12 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 				http.Error(w, ErrorInernalServer.Error(), http.StatusBadRequest)
 				return
 			}
+
+			shortURL := rh.baseURL + "/" + existingSlug
+
 			w.Header().Set("Content-Type", PlainTextContentType)
 			w.WriteHeader(http.StatusConflict)
-			if _, err := w.Write([]byte(existingSlug)); err != nil {
+			if _, err := w.Write([]byte(shortURL)); err != nil {
 				log.Println("error writing response:", err)
 			}
 			return
