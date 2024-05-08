@@ -3,9 +3,12 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -25,7 +28,7 @@ func NewPostgresStorage(ctx context.Context, postgresDSN string) (*PostgresStore
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %w", err)
 	}
 
-	query := `
+	createTableQuery := `
 	CREATE TABLE IF NOT EXISTS url (
 		id SERIAL PRIMARY KEY,
 		slug VARCHAR(20) UNIQUE NOT NULL,
@@ -33,29 +36,18 @@ func NewPostgresStorage(ctx context.Context, postgresDSN string) (*PostgresStore
 		user_uuid VARCHAR(36) NOT NULL
 	);
 	`
-
-	if _, err := db.ExecContext(ctx, query); err != nil {
+	if _, err := db.ExecContext(ctx, createTableQuery); err != nil {
 		return nil, fmt.Errorf("failed to create table: %w", err)
 	}
 
-	return &PostgresStore{db: db, ctx: ctx}, nil
-}
-
-func (p *PostgresStore) GetURL(slug string, userID string) (string, error) {
-	var originalURL string
-
-	query := `
-	SELECT original_url
-	FROM url
-	WHERE slug = $1;
-	`
-
-	err := p.db.QueryRowContext(p.ctx, query, slug).Scan(&originalURL)
-	if err != nil {
-		return "", fmt.Errorf("failed to read URL: slug %s, error: %w", slug, err)
+	createIndexQuery := `
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_original_url ON url (original_url);
+    `
+	if _, err := db.ExecContext(ctx, createIndexQuery); err != nil {
+		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
 
-	return originalURL, nil
+	return &PostgresStore{db: db, ctx: ctx}, nil
 }
 
 func (p *PostgresStore) AddURL(slug string, originalURL string, userID string) error {
@@ -67,6 +59,11 @@ func (p *PostgresStore) AddURL(slug string, originalURL string, userID string) e
 
 	_, err := p.db.ExecContext(p.ctx, query, slug, originalURL, userID)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+			log.Printf("unique originalURL violation for %s", originalURL)
+			return ErrorURLAlreadyExists
+		}
 		return fmt.Errorf("failed to add URL: %w", err)
 	}
 	return nil
@@ -106,6 +103,23 @@ func (p *PostgresStore) BatchAddURLs(urlsBatch []BatchURLsElement, userID string
 	return tx.Commit()
 }
 
+func (p *PostgresStore) GetURL(slug string, userID string) (string, error) {
+	var originalURL string
+
+	query := `
+	SELECT original_url
+	FROM url
+	WHERE slug = $1;
+	`
+
+	err := p.db.QueryRowContext(p.ctx, query, slug).Scan(&originalURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to read URL: slug %s, error: %w", slug, err)
+	}
+
+	return originalURL, nil
+}
+
 func (p *PostgresStore) GetURLsByUser(userID string) map[string]string {
 	urls := make(map[string]string)
 
@@ -136,6 +150,23 @@ func (p *PostgresStore) GetURLsByUser(userID string) map[string]string {
 	}
 
 	return urls
+}
+
+func (p *PostgresStore) GetSlugByOriginalURL(originalURL string, userID string) (string, error) {
+	var slug string
+
+	query := `
+	SELECT slug
+	FROM url
+	WHERE original_url = $1;
+	`
+
+	err := p.db.QueryRowContext(p.ctx, query, originalURL).Scan(&slug)
+	if err != nil {
+		return "", fmt.Errorf("failed to read slug: originalURL %s, error: %w", slug, err)
+	}
+
+	return slug, nil
 }
 
 func (p *PostgresStore) Ping() error {

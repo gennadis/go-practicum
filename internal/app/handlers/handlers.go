@@ -93,8 +93,21 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 	log.Printf("original url %s, shortened url: %s", originalURL, shortURL)
 
 	if err := rh.storage.AddURL(slug, string(originalURL), userID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		log.Print(err.Error())
+		if errors.Is(err, storage.ErrorURLAlreadyExists) {
+			existingSlug, err := rh.storage.GetSlugByOriginalURL(string(originalURL), userID)
+			if err != nil {
+				log.Printf("error reading existing slug for %s: %s", originalURL, err)
+				http.Error(w, ErrorInernalServer.Error(), http.StatusBadRequest)
+			}
+			w.Header().Set("Content-Type", PlainTextContentType)
+			w.WriteHeader(http.StatusConflict)
+			if _, err := w.Write([]byte(existingSlug)); err != nil {
+				log.Println("error writing response:", err)
+			}
+			return
+		}
+		log.Printf("error saving URL: %v", err)
+		http.Error(w, ErrorInernalServer.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -138,6 +151,19 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 	log.Printf("original url %s, shortened url: %s", shortenReq.URL, shortURL)
 
 	if err := rh.storage.AddURL(slug, string(shortenReq.URL), userID); err != nil {
+		if errors.Is(err, storage.ErrorURLAlreadyExists) {
+			existingSlug, err := rh.storage.GetSlugByOriginalURL(string(shortenReq.URL), userID)
+			if err != nil {
+				log.Printf("error reading existing slug for %s: %s", shortenReq.URL, err)
+				http.Error(w, ErrorInernalServer.Error(), http.StatusBadRequest)
+			}
+			w.Header().Set("Content-Type", PlainTextContentType)
+			w.WriteHeader(http.StatusConflict)
+			if _, err := w.Write([]byte(existingSlug)); err != nil {
+				log.Println("error writing response:", err)
+			}
+			return
+		}
 		log.Println("error writing to storage:", err)
 		http.Error(w, ErrorInernalServer.Error(), http.StatusInternalServerError)
 		return

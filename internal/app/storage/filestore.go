@@ -78,6 +78,10 @@ func (f *FileStorage) AddURL(slug string, originalURL string, userID string) err
 	return nil
 }
 
+func (f *FileStorage) BatchAddURLs(urlsBatch []BatchURLsElement, userID string) error {
+	return nil
+}
+
 func (f *FileStorage) GetURL(slug string, userID string) (string, error) {
 	slugURLpairs := make(map[string]string)
 	for _, innerMap := range f.data {
@@ -101,10 +105,10 @@ func (f *FileStorage) GetURLsByUser(userID string) map[string]string {
 	return userURLs
 }
 
-func (f *FileStorage) Ping() error {
-	return nil
+func (f *FileStorage) GetSlugByOriginalURL(originalURL string, userID string) (string, error) {
+	return "", nil
 }
 
-func (f *FileStorage) BatchAddURLs(urlsBatch []BatchURLsElement, userID string) error {
+func (f *FileStorage) Ping() error {
 	return nil
 }

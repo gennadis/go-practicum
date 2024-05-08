@@ -27,6 +27,10 @@ func (m *MemoryStorage) AddURL(slug string, originalURL string, userID string) e
 	return nil
 }
 
+func (m *MemoryStorage) BatchAddURLs(urlsBatch []BatchURLsElement, userID string) error {
+	return nil
+}
+
 func (m *MemoryStorage) GetURL(slug string, userID string) (string, error) {
 	log.Printf("user %s requested slug %s", userID, slug)
 	slugURLpairs := make(map[string]string)
@@ -51,10 +55,10 @@ func (m *MemoryStorage) GetURLsByUser(userID string) map[string]string {
 	return userURLs
 }
 
-func (m *MemoryStorage) Ping() error {
-	return nil
+func (m *MemoryStorage) GetSlugByOriginalURL(originalURL string, userID string) (string, error) {
+	return "", nil
 }
 
-func (m *MemoryStorage) BatchAddURLs(urlsBatch []BatchURLsElement, userID string) error {
+func (m *MemoryStorage) Ping() error {
 	return nil
 }
