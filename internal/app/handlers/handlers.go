@@ -165,7 +165,7 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 
 			shortURL := rh.baseURL + "/" + existingSlug
 
-			w.Header().Set("Content-Type", PlainTextContentType)
+			w.Header().Set("Content-Type", JSONContentType)
 			w.WriteHeader(http.StatusConflict)
 			if _, err := w.Write([]byte(shortURL)); err != nil {
 				log.Println("error writing response:", err)
