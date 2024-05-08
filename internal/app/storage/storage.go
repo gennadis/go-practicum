@@ -19,6 +19,7 @@ type Storage interface {
 	GetURL(slug string, userID string) (string, error)
 	GetURLsByUser(userID string) map[string]string
 	Ping() error
+	BatchAddURLs(urlsBatch []BatchURLsElement, userID string) error
 }
 
 func NewStorage(ctx context.Context, config config.Configuration) (Storage, error) {

@@ -34,6 +34,14 @@ type (
 	ShortenURLResponse struct {
 		Result string `json:"result"`
 	}
+	BatchShortenURLRequest struct {
+		CorrelationID string `json:"correlation_id"`
+		OriginalURL   string `json:"original_url"`
+	}
+	BatchShortenURLResponse struct {
+		CorrelationID string `json:"correlation_id"`
+		ShortURL      string `json:"short_url"`
+	}
 	UserURL struct {
 		ShortUrl    string `json:"short_url"`
 		OriginalURL string `json:"original_url"`
@@ -223,4 +231,65 @@ func (rh *RequestHandler) HandleDatabasePing(w http.ResponseWriter, r *http.Requ
 	}
 	w.WriteHeader(http.StatusOK)
 	log.Println("database ping successful")
+}
+
+func (rh *RequestHandler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *http.Request) {
+	userID, err := rh.getUserIDFromContext(r)
+	if err != nil {
+		log.Printf("error getting user ID: %v", err)
+		http.Error(w, ErrorInernalServer.Error(), http.StatusBadRequest)
+		return
+	}
+
+	reqBody, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("error reading request body: %v", err)
+		http.Error(w, ErrorInernalServer.Error(), http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	var batchShortenReq []BatchShortenURLRequest
+	if err := json.Unmarshal(reqBody, &batchShortenReq); err != nil {
+		log.Println("error unmarshaling request data:", err)
+		http.Error(w, ErrorInvalidRequest.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var batchShortenResp []BatchShortenURLResponse
+	var batchURLs []storage.BatchURLsElement
+	for _, el := range batchShortenReq {
+		if el.OriginalURL == "" {
+			http.Error(w, ErrorMissingURLParameter.Error(), http.StatusBadRequest)
+			return
+		}
+
+		slug := GenerateSlug()
+		shortURL := rh.baseURL + "/" + slug
+		log.Printf("original url %s, shortened url: %s", el.OriginalURL, shortURL)
+
+		batchURLs = append(batchURLs, storage.BatchURLsElement{Slug: slug, OriginalURL: el.OriginalURL})
+		batchShortenResp = append(batchShortenResp, BatchShortenURLResponse{CorrelationID: el.CorrelationID, ShortURL: shortURL})
+	}
+
+	err = rh.storage.BatchAddURLs(batchURLs, userID)
+	if err != nil {
+		log.Println("error batch adding urls:", err)
+		http.Error(w, ErrorInvalidRequest.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	respJSON, err := json.Marshal(batchShortenResp)
+	if err != nil {
+		log.Println("error marshaling response:", err)
+		http.Error(w, ErrorInernalServer.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", JSONContentType)
+	w.WriteHeader(http.StatusCreated)
+	if _, err := w.Write(respJSON); err != nil {
+		log.Println("error writing response:", err)
+		return
+	}
 }
