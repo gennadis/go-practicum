@@ -98,6 +98,7 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 			if err != nil {
 				log.Printf("error reading existing slug for %s: %s", originalURL, err)
 				http.Error(w, ErrorInernalServer.Error(), http.StatusBadRequest)
+				return
 			}
 			w.Header().Set("Content-Type", PlainTextContentType)
 			w.WriteHeader(http.StatusConflict)
@@ -156,6 +157,7 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 			if err != nil {
 				log.Printf("error reading existing slug for %s: %s", shortenReq.URL, err)
 				http.Error(w, ErrorInernalServer.Error(), http.StatusBadRequest)
+				return
 			}
 			w.Header().Set("Content-Type", PlainTextContentType)
 			w.WriteHeader(http.StatusConflict)
