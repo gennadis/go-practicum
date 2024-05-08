@@ -241,13 +241,13 @@ func (rh *RequestHandler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *ht
 		return
 	}
 
-	defer r.Body.Close()
 	reqBody, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("error reading request body: %v", err)
 		http.Error(w, ErrorInernalServer.Error(), http.StatusBadRequest)
 		return
 	}
+	defer r.Body.Close()
 
 	var batchShortenReq []BatchShortenURLRequest
 	if err := json.Unmarshal(reqBody, &batchShortenReq); err != nil {
@@ -257,6 +257,7 @@ func (rh *RequestHandler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *ht
 	}
 
 	var batchShortenResp []BatchShortenURLResponse
+	var batchURLs []storage.BatchURLsElement
 	for _, el := range batchShortenReq {
 		if el.OriginalURL == "" {
 			http.Error(w, ErrorMissingURLParameter.Error(), http.StatusBadRequest)
@@ -267,14 +268,15 @@ func (rh *RequestHandler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *ht
 		shortURL := rh.baseURL + "/" + slug
 		log.Printf("original url %s, shortened url: %s", el.OriginalURL, shortURL)
 
-		if err := rh.storage.AddURL(slug, string(el.OriginalURL), userID); err != nil {
-			log.Println("error writing to storage:", err)
-			http.Error(w, ErrorInernalServer.Error(), http.StatusInternalServerError)
-			return
-		}
-
+		batchURLs = append(batchURLs, storage.BatchURLsElement{Slug: slug, OriginalURL: el.OriginalURL})
 		batchShortenResp = append(batchShortenResp, BatchShortenURLResponse{CorrelationID: el.CorrelationID, ShortURL: shortURL})
+	}
 
+	err = rh.storage.BatchAddURLs(batchURLs, userID)
+	if err != nil {
+		log.Println("error batch adding urls:", err)
+		http.Error(w, ErrorInvalidRequest.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	respJSON, err := json.Marshal(batchShortenResp)

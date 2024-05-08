@@ -54,3 +54,7 @@ func (m *MemoryStorage) GetURLsByUser(userID string) map[string]string {
 func (m *MemoryStorage) Ping() error {
 	return nil
 }
+
+func (m *MemoryStorage) BatchAddURLs(urlsBatch []BatchURLsElement, userID string) error {
+	return nil
+}

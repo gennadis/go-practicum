@@ -104,3 +104,7 @@ func (f *FileStorage) GetURLsByUser(userID string) map[string]string {
 func (f *FileStorage) Ping() error {
 	return nil
 }
+
+func (f *FileStorage) BatchAddURLs(urlsBatch []BatchURLsElement, userID string) error {
+	return nil
+}
