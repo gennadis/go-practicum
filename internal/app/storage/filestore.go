@@ -66,6 +66,16 @@ func (f *FileStorage) AddURL(slug string, originalURL string, userID string) err
 		return ErrorSlugEmpty
 	}
 	userURLs, ok := f.data[userID]
+
+	// check if the original URL already exists for any user
+	for _, userURLs := range f.data {
+		for _, url := range userURLs {
+			if url == originalURL {
+				return ErrorURLAlreadyExists
+			}
+		}
+	}
+
 	if !ok {
 		userURLs = make(map[string]string)
 	}
@@ -79,6 +89,11 @@ func (f *FileStorage) AddURL(slug string, originalURL string, userID string) err
 }
 
 func (f *FileStorage) BatchAddURLs(urlsBatch []BatchURLsElement, userID string) error {
+	for _, element := range urlsBatch {
+		if err := f.AddURL(element.Slug, element.OriginalURL, userID); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -106,7 +121,14 @@ func (f *FileStorage) GetURLsByUser(userID string) map[string]string {
 }
 
 func (f *FileStorage) GetSlugByOriginalURL(originalURL string, userID string) (string, error) {
-	return "", nil
+	for _, userURLs := range f.data {
+		for slug, url := range userURLs {
+			if url == originalURL {
+				return slug, nil
+			}
+		}
+	}
+	return "", ErrorSlugUnknown
 }
 
 func (f *FileStorage) Ping() error {
