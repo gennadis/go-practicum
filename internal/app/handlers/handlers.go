@@ -256,6 +256,12 @@ func (rh *RequestHandler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *ht
 		return
 	}
 
+	if len(batchShortenReq) == 0 {
+		log.Println("empty batch request slice")
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
 	var batchShortenResp []BatchShortenURLResponse
 	var batchURLs []storage.BatchURLsElement
 	for _, el := range batchShortenReq {
