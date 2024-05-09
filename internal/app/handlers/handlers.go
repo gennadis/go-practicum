@@ -164,10 +164,18 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 			}
 
 			shortURL := rh.baseURL + "/" + existingSlug
+			var resp ShortenURLResponse
+			resp.Result = shortURL
+			respJSON, err := json.Marshal(resp)
+			if err != nil {
+				log.Println("error marshaling response:", err)
+				http.Error(w, ErrorInernalServer.Error(), http.StatusInternalServerError)
+				return
+			}
 
 			w.Header().Set("Content-Type", JSONContentType)
 			w.WriteHeader(http.StatusConflict)
-			if _, err := w.Write([]byte(shortURL)); err != nil {
+			if _, err := w.Write(respJSON); err != nil {
 				log.Println("error writing response:", err)
 			}
 			return
