@@ -18,6 +18,18 @@ const (
 	userID  = "testUserID"
 )
 
+func TestGenerateSlug(t *testing.T) {
+	testRuns := 100
+	for i := 0; i < testRuns; i++ {
+		slug := generateSlug()
+		assert.Greater(t, len(slug), 0)
+		assert.Len(t, slug, slugLen, "Generated slug length mismatch")
+		for _, char := range slug {
+			assert.Contains(t, charset, string(char), "Invalid character found in slug")
+		}
+	}
+}
+
 func TestHandleShortenURL(t *testing.T) {
 	tests := []struct {
 		name                string
@@ -37,7 +49,7 @@ func TestHandleShortenURL(t *testing.T) {
 			name:                "MissingURLParameter",
 			requestBody:         "",
 			expectedStatus:      http.StatusBadRequest,
-			expectedBody:        ErrorMissingURLParameter.Error(),
+			expectedBody:        http.StatusText(http.StatusBadRequest),
 			expectedContentType: PlainTextContentType,
 		},
 	}
@@ -87,28 +99,28 @@ func TestHandleJSONShortenURL(t *testing.T) {
 			name:                "EmptyBodyRequest",
 			requestBody:         `{}`,
 			expectedStatus:      http.StatusBadRequest,
-			expectedBody:        ErrorMissingURLParameter.Error(),
+			expectedBody:        http.StatusText(http.StatusBadRequest),
 			expectedContentType: PlainTextContentType,
 		},
 		{
 			name:                "UnmarshalRequestBodyError",
 			requestBody:         "{invalid_json}",
 			expectedStatus:      http.StatusBadRequest,
-			expectedBody:        ErrorInvalidRequest.Error(),
+			expectedBody:        http.StatusText(http.StatusBadRequest),
 			expectedContentType: PlainTextContentType,
 		},
 		{
 			name:                "MissingURLParameter",
 			requestBody:         `{"test": "test"}`,
 			expectedStatus:      http.StatusBadRequest,
-			expectedBody:        ErrorMissingURLParameter.Error(),
+			expectedBody:        http.StatusText(http.StatusBadRequest),
 			expectedContentType: PlainTextContentType,
 		},
 		{
 			name:                "EmptyBodyRequest",
 			requestBody:         "",
 			expectedStatus:      http.StatusBadRequest,
-			expectedBody:        ErrorInvalidRequest.Error(),
+			expectedBody:        http.StatusText(http.StatusBadRequest),
 			expectedContentType: PlainTextContentType,
 		},
 	}
@@ -217,7 +229,7 @@ func TestDefaultHandler(t *testing.T) {
 			handler.HandleMethodNotAllowed(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
-			assert.Equal(t, strings.TrimSpace(ErrorInvalidRequest.Error()), strings.TrimSpace(recorder.Body.String()))
+			assert.Equal(t, http.StatusText(http.StatusBadRequest), strings.TrimSpace(recorder.Body.String()))
 			assert.Equal(t, PlainTextContentType, recorder.Header().Get("Content-Type"))
 		})
 	}
@@ -268,40 +280,75 @@ func TestHandleGetUserURLs(t *testing.T) {
 	}
 }
 
-// func TestHandleDatabasePing(t *testing.T) {
-// 	testPostgresStore, err := postgres.New("")
-// 	if err != nil {
-// 		t.Fatalf("error creating PostgresStore: %v", err)
-// 	}
+func TestHandleDatabasePing(t *testing.T) {
+	tests := []struct {
+		name           string
+		storage        storage.Storage
+		expectedStatus int
+	}{
+		{
+			name:           "MemoryStoragePingSuccess",
+			storage:        storage.NewMemoryStorage(),
+			expectedStatus: http.StatusOK,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := NewRequestHandler(tc.storage, baseURL)
 
-// 	tests := []struct {
-// 		name           string
-// 		storage        storage.Storage
-// 		expectedStatus int
-// 	}{
-// 		{
-// 			name:           "Database Ping Success",
-// 			storage:        memstore.New(),
-// 			expectedStatus: http.StatusOK,
-// 		},
-// 		{
-// 			name:           "Database Ping Error",
-// 			storage:        testPostgresStore,
-// 			expectedStatus: http.StatusInternalServerError,
-// 		},
-// 	}
-// 	for _, tc := range tests {
-// 		t.Run(tc.name, func(t *testing.T) {
-// 			handler := NewRequestHandler(tc.storage, baseURL)
+			req, err := http.NewRequest("GET", "/ping", nil)
+			assert.NoError(t, err)
 
-// 			req, err := http.NewRequest("GET", "/ping", nil)
-// 			assert.NoError(t, err)
+			recorder := httptest.NewRecorder()
+			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+			handler.HandleDatabasePing(recorder, req.WithContext(ctx))
 
-// 			recorder := httptest.NewRecorder()
-// 			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
-// 			handler.HandleDatabasePing(recorder, req.WithContext(ctx))
+			assert.Equal(t, tc.expectedStatus, recorder.Code)
+		})
+	}
+}
 
-// 			assert.Equal(t, tc.expectedStatus, recorder.Code)
-// 		})
-// 	}
-// }
+func TestHandleBatchJSONShortenURL(t *testing.T) {
+	tests := []struct {
+		name                string
+		requestBody         string
+		expectedStatus      int
+		expectedContentType string
+	}{
+		{
+			name:                "ValidRequest",
+			requestBody:         `[{"correlation_id": "1", "original_url": "https://example.com"}]`,
+			expectedStatus:      http.StatusCreated,
+			expectedContentType: JSONContentType,
+		},
+		{
+			name:                "EmptyRequestBody",
+			requestBody:         `[]`,
+			expectedStatus:      http.StatusBadRequest,
+			expectedContentType: PlainTextContentType,
+		},
+		{
+			name:                "InvalidRequestBody",
+			requestBody:         `[{"correlation_id": "1"}]`, // missing original_url
+			expectedStatus:      http.StatusBadRequest,
+			expectedContentType: PlainTextContentType,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			memStorage := storage.NewMemoryStorage()
+			handler := NewRequestHandler(memStorage, baseURL)
+
+			body := bytes.NewBufferString(tc.requestBody)
+			req, err := http.NewRequest("POST", "/api/batch-shorten", body)
+			assert.NoError(t, err)
+
+			recorder := httptest.NewRecorder()
+			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+			handler.HandleBatchJSONShortenURL(recorder, req.WithContext(ctx))
+
+			assert.Equal(t, tc.expectedStatus, recorder.Code)
+			assert.Equal(t, tc.expectedContentType, recorder.Header().Get("Content-Type"))
+		})
+	}
+}

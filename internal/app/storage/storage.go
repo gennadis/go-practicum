@@ -9,17 +9,19 @@ import (
 )
 
 var (
-	ErrorUserIDUnknown = errors.New("unknown userID provided")
-	ErrorSlugUnknown   = errors.New("unknown slug provided")
-	ErrorSlugEmpty     = errors.New("empty slug provided")
+	ErrorUserIDUnknown    = errors.New("unknown userID provided")
+	ErrorSlugUnknown      = errors.New("unknown slug provided")
+	ErrorSlugEmpty        = errors.New("empty slug provided")
+	ErrorURLAlreadyExists = errors.New("URL already exists")
 )
 
 type Storage interface {
 	AddURL(slug string, originalURL string, userID string) error
+	BatchAddURLs(urlsBatch []BatchURLsElement, userID string) error
 	GetURL(slug string, userID string) (string, error)
 	GetURLsByUser(userID string) map[string]string
+	GetSlugByOriginalURL(originalURL string, userID string) (string, error)
 	Ping() error
-	BatchAddURLs(urlsBatch []BatchURLsElement, userID string) error
 }
 
 func NewStorage(ctx context.Context, config config.Configuration) (Storage, error) {

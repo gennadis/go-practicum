@@ -5,7 +5,7 @@ import (
 )
 
 type MemoryStorage struct {
-	data map[string]map[string]string // {"username":{"slug":"originalUrl"}}
+	data map[string]map[string]string // map[userID]map[slug][originalURL]
 }
 
 func NewMemoryStorage() *MemoryStorage {
@@ -19,11 +19,30 @@ func (m *MemoryStorage) AddURL(slug string, originalURL string, userID string) e
 		return ErrorSlugEmpty
 	}
 	userURLs, ok := m.data[userID]
+
+	// check if the original URL already exists for any user
+	for _, userURLs := range m.data {
+		for _, url := range userURLs {
+			if url == originalURL {
+				return ErrorURLAlreadyExists
+			}
+		}
+	}
+
 	if !ok {
 		userURLs = make(map[string]string)
 	}
 	userURLs[slug] = originalURL
 	m.data[userID] = userURLs
+	return nil
+}
+
+func (m *MemoryStorage) BatchAddURLs(urlsBatch []BatchURLsElement, userID string) error {
+	for _, element := range urlsBatch {
+		if err := m.AddURL(element.Slug, element.OriginalURL, userID); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -51,10 +70,17 @@ func (m *MemoryStorage) GetURLsByUser(userID string) map[string]string {
 	return userURLs
 }
 
-func (m *MemoryStorage) Ping() error {
-	return nil
+func (m *MemoryStorage) GetSlugByOriginalURL(originalURL string, userID string) (string, error) {
+	for _, userURLs := range m.data {
+		for slug, url := range userURLs {
+			if url == originalURL {
+				return slug, nil
+			}
+		}
+	}
+	return "", ErrorSlugUnknown
 }
 
-func (m *MemoryStorage) BatchAddURLs(urlsBatch []BatchURLsElement, userID string) error {
+func (m *MemoryStorage) Ping() error {
 	return nil
 }
