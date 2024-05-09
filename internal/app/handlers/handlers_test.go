@@ -19,14 +19,15 @@ const (
 )
 
 func TestGenerateSlug(t *testing.T) {
-	t.Run("ValidSlug", func(t *testing.T) {
+	testRuns := 100
+	for i := 0; i < testRuns; i++ {
 		slug := generateSlug()
-		assert.Greater(t, slugLen, 0)
-		assert.Len(t, slug, slugLen)
+		assert.Greater(t, len(slug), 0)
+		assert.Len(t, slug, slugLen, "Generated slug length mismatch")
 		for _, char := range slug {
-			assert.Contains(t, charset, string(char))
+			assert.Contains(t, charset, string(char), "Invalid character found in slug")
 		}
-	})
+	}
 }
 
 func TestHandleShortenURL(t *testing.T) {

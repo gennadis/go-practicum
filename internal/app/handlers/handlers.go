@@ -16,7 +16,7 @@ type contextKey string
 const UserIDContextKey contextKey = "userID"
 
 const (
-	charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	charset = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 	slugLen = 6 //should be greater than 0
 )
 
