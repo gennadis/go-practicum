@@ -352,3 +352,55 @@ func TestHandleBatchJSONShortenURL(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleShortenURL_URLAlreadyExists(t *testing.T) {
+	memStorage := storage.NewMemoryStorage()
+	handler := NewRequestHandler(memStorage, baseURL)
+
+	existingURL := "https://example.com"
+	existingSlug := "existingSlug"
+	if err := memStorage.AddURL(existingSlug, existingURL, userID); err != nil {
+		t.Fatalf("memstore write error")
+	}
+
+	req, err := http.NewRequest("POST", "/", strings.NewReader(existingURL))
+	assert.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+	handler.HandleShortenURL(recorder, req.WithContext(ctx))
+
+	assert.Equal(t, http.StatusConflict, recorder.Code)
+	assert.Equal(t, PlainTextContentType, recorder.Header().Get("Content-Type"))
+	assert.Contains(t, recorder.Body.String(), baseURL+"/"+existingSlug)
+}
+
+func TestHandleJSONShortenURL_URLAlreadyExists(t *testing.T) {
+	memStorage := storage.NewMemoryStorage()
+	handler := NewRequestHandler(memStorage, baseURL)
+
+	existingURL := "https://example.com"
+	existingSlug := "existingSlug"
+	if err := memStorage.AddURL(existingSlug, existingURL, userID); err != nil {
+		t.Fatalf("memstore write error")
+	}
+
+	existingURLRequest := ShortenURLRequest{URL: existingURL}
+	requestBody, err := json.Marshal(existingURLRequest)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest("POST", "/api/shorten", bytes.NewBuffer(requestBody))
+	assert.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+	handler.HandleJSONShortenURL(recorder, req.WithContext(ctx))
+
+	assert.Equal(t, http.StatusConflict, recorder.Code)
+	assert.Equal(t, JSONContentType, recorder.Header().Get("Content-Type"))
+
+	var response ShortenURLResponse
+	err = json.Unmarshal(recorder.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, baseURL+"/"+existingSlug, response.Result)
+}
