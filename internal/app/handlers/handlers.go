@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 
 	"github.com/gennadis/shorturl/internal/app/storage"
@@ -13,6 +14,11 @@ import (
 type contextKey string
 
 const UserIDContextKey contextKey = "userID"
+
+const (
+	charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	slugLen = 6 //should be greater than 0
+)
 
 const (
 	JSONContentType      = "application/json"
@@ -47,6 +53,14 @@ type (
 type RequestHandler struct {
 	storage storage.Storage
 	baseURL string
+}
+
+func generateSlug() string {
+	b := make([]byte, slugLen)
+	for i := range b {
+		b[i] = charset[rand.Intn(len(charset))]
+	}
+	return string(b)
 }
 
 func NewRequestHandler(storage storage.Storage, baseURL string) *RequestHandler {
@@ -107,7 +121,7 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	slug := GenerateSlug()
+	slug := generateSlug()
 	shortURL := rh.baseURL + "/" + slug
 	log.Printf("original url %s, shortened url: %s", originalURL, shortURL)
 
@@ -156,7 +170,7 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	slug := GenerateSlug()
+	slug := generateSlug()
 	shortURL := rh.baseURL + "/" + slug
 	log.Printf("original url %s, shortened url: %s", shortenReq.URL, shortURL)
 
@@ -271,7 +285,7 @@ func (rh *RequestHandler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *ht
 			return
 		}
 
-		slug := GenerateSlug()
+		slug := generateSlug()
 		shortURL := rh.baseURL + "/" + slug
 		log.Printf("original url %s, shortened url: %s", el.OriginalURL, shortURL)
 

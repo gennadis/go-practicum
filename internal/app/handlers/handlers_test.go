@@ -18,6 +18,17 @@ const (
 	userID  = "testUserID"
 )
 
+func TestGenerateSlug(t *testing.T) {
+	t.Run("ValidSlug", func(t *testing.T) {
+		slug := generateSlug()
+		assert.Greater(t, slugLen, 0)
+		assert.Len(t, slug, slugLen)
+		for _, char := range slug {
+			assert.Contains(t, charset, string(char))
+		}
+	})
+}
+
 func TestHandleShortenURL(t *testing.T) {
 	tests := []struct {
 		name                string
