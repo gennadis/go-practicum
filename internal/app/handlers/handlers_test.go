@@ -37,7 +37,7 @@ func TestHandleShortenURL(t *testing.T) {
 			name:                "MissingURLParameter",
 			requestBody:         "",
 			expectedStatus:      http.StatusBadRequest,
-			expectedBody:        ErrorMissingURLParameter.Error(),
+			expectedBody:        http.StatusText(http.StatusBadRequest),
 			expectedContentType: PlainTextContentType,
 		},
 	}
@@ -87,28 +87,28 @@ func TestHandleJSONShortenURL(t *testing.T) {
 			name:                "EmptyBodyRequest",
 			requestBody:         `{}`,
 			expectedStatus:      http.StatusBadRequest,
-			expectedBody:        ErrorMissingURLParameter.Error(),
+			expectedBody:        http.StatusText(http.StatusBadRequest),
 			expectedContentType: PlainTextContentType,
 		},
 		{
 			name:                "UnmarshalRequestBodyError",
 			requestBody:         "{invalid_json}",
 			expectedStatus:      http.StatusBadRequest,
-			expectedBody:        ErrorInvalidRequest.Error(),
+			expectedBody:        http.StatusText(http.StatusBadRequest),
 			expectedContentType: PlainTextContentType,
 		},
 		{
 			name:                "MissingURLParameter",
 			requestBody:         `{"test": "test"}`,
 			expectedStatus:      http.StatusBadRequest,
-			expectedBody:        ErrorMissingURLParameter.Error(),
+			expectedBody:        http.StatusText(http.StatusBadRequest),
 			expectedContentType: PlainTextContentType,
 		},
 		{
 			name:                "EmptyBodyRequest",
 			requestBody:         "",
 			expectedStatus:      http.StatusBadRequest,
-			expectedBody:        ErrorInvalidRequest.Error(),
+			expectedBody:        http.StatusText(http.StatusBadRequest),
 			expectedContentType: PlainTextContentType,
 		},
 	}
@@ -217,7 +217,7 @@ func TestDefaultHandler(t *testing.T) {
 			handler.HandleMethodNotAllowed(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
-			assert.Equal(t, strings.TrimSpace(ErrorInvalidRequest.Error()), strings.TrimSpace(recorder.Body.String()))
+			assert.Equal(t, http.StatusText(http.StatusBadRequest), strings.TrimSpace(recorder.Body.String()))
 			assert.Equal(t, PlainTextContentType, recorder.Header().Get("Content-Type"))
 		})
 	}
