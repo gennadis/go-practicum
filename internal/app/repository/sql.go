@@ -1,4 +1,4 @@
-package storage
+package repository
 
 import (
 	"context"
@@ -12,11 +12,11 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-type PostgresStorage struct {
+type SQLRepository struct {
 	db *sql.DB
 }
 
-func NewPostgresStorage(ctx context.Context, postgresDSN string) (*PostgresStorage, error) {
+func NewSQLRepository(ctx context.Context, postgresDSN string) (*SQLRepository, error) {
 	createTableQuery := `
 	CREATE TABLE IF NOT EXISTS url (
 		id SERIAL PRIMARY KEY,
@@ -41,17 +41,17 @@ func NewPostgresStorage(ctx context.Context, postgresDSN string) (*PostgresStora
 	if _, err := db.ExecContext(ctx, createIndexQuery); err != nil {
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
-	return &PostgresStorage{db: db}, nil
+	return &SQLRepository{db: db}, nil
 }
 
-func (ps *PostgresStorage) AddURL(ctx context.Context, url URL) error {
+func (sr *SQLRepository) AddURL(ctx context.Context, url URL) error {
 	addURLQuery := `
 	INSERT INTO url
 	(slug, original_url, user_uuid)
 	VALUES ($1, $2, $3);
 	`
 
-	_, err := ps.db.ExecContext(ctx, addURLQuery, url.Slug, url.OriginalURL, url.UserID)
+	_, err := sr.db.ExecContext(ctx, addURLQuery, url.Slug, url.OriginalURL, url.UserID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
@@ -63,14 +63,14 @@ func (ps *PostgresStorage) AddURL(ctx context.Context, url URL) error {
 	return nil
 }
 
-func (ps *PostgresStorage) AddURLs(ctx context.Context, urls []URL) error {
+func (sr *SQLRepository) AddURLs(ctx context.Context, urls []URL) error {
 	addURLsQuery := `
 	INSERT INTO url
 	(slug, original_url, user_uuid)
 	VALUES ($1, $2, $3);
 	`
 
-	tx, err := ps.db.Begin()
+	tx, err := sr.db.Begin()
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func (ps *PostgresStorage) AddURLs(ctx context.Context, urls []URL) error {
 	return tx.Commit()
 }
 
-func (ps *PostgresStorage) GetURL(ctx context.Context, slug string) (URL, error) {
+func (sr *SQLRepository) GetURL(ctx context.Context, slug string) (URL, error) {
 	getURLquery := `
 	SELECT slug, original_url, user_uuid
 	FROM url
@@ -104,14 +104,14 @@ func (ps *PostgresStorage) GetURL(ctx context.Context, slug string) (URL, error)
 	`
 
 	var url URL
-	err := ps.db.QueryRowContext(ctx, getURLquery, slug).Scan(&url.Slug, &url.OriginalURL, &url.UserID)
+	err := sr.db.QueryRowContext(ctx, getURLquery, slug).Scan(&url.Slug, &url.OriginalURL, &url.UserID)
 	if err != nil {
 		return URL{}, ErrURLNotFound
 	}
 	return url, nil
 }
 
-func (ps *PostgresStorage) GetURLsByUser(ctx context.Context, userID string) ([]URL, error) {
+func (sr *SQLRepository) GetURLsByUser(ctx context.Context, userID string) ([]URL, error) {
 	getURLsByUserQuery := `
 	SELECT slug, original_url
 	FROM url
@@ -119,7 +119,7 @@ func (ps *PostgresStorage) GetURLsByUser(ctx context.Context, userID string) ([]
 	`
 
 	urls := []URL{}
-	rows, err := ps.db.QueryContext(ctx, getURLsByUserQuery, userID)
+	rows, err := sr.db.QueryContext(ctx, getURLsByUserQuery, userID)
 	if err != nil {
 		log.Printf("Error querying user URLs: %v", err)
 		return urls, ErrURLNotFound
@@ -143,7 +143,7 @@ func (ps *PostgresStorage) GetURLsByUser(ctx context.Context, userID string) ([]
 	return urls, nil
 }
 
-func (ps *PostgresStorage) GetURLByOriginalURL(ctx context.Context, originalURL string) (URL, error) {
+func (sr *SQLRepository) GetURLByOriginalURL(ctx context.Context, originalURL string) (URL, error) {
 	getURLByOriginalURLQuery := `
 	SELECT slug, user_uuid
 	FROM url
@@ -151,7 +151,7 @@ func (ps *PostgresStorage) GetURLByOriginalURL(ctx context.Context, originalURL 
 	`
 
 	var slug, userID string
-	err := ps.db.QueryRowContext(ctx, getURLByOriginalURLQuery, originalURL).Scan(&slug, &userID)
+	err := sr.db.QueryRowContext(ctx, getURLByOriginalURLQuery, originalURL).Scan(&slug, &userID)
 	if err != nil {
 		return URL{}, ErrURLNotFound
 	}
@@ -160,6 +160,6 @@ func (ps *PostgresStorage) GetURLByOriginalURL(ctx context.Context, originalURL 
 	return *url, nil
 }
 
-func (ps *PostgresStorage) Ping(ctx context.Context) error {
-	return ps.db.PingContext(ctx)
+func (sr *SQLRepository) Ping(ctx context.Context) error {
+	return sr.db.PingContext(ctx)
 }

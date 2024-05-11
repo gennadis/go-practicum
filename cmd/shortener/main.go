@@ -6,14 +6,14 @@ import (
 	"net/http"
 
 	"github.com/gennadis/shorturl/internal/app/config"
+	"github.com/gennadis/shorturl/internal/app/repository"
 	"github.com/gennadis/shorturl/internal/app/server"
-	"github.com/gennadis/shorturl/internal/app/storage"
 )
 
 func main() {
 	cfg := config.NewConfiguration()
 	ctx := context.Background()
-	strg, err := storage.NewURLStorage(ctx, cfg)
+	strg, err := repository.NewRepository(ctx, cfg)
 	if err != nil {
 		log.Printf("error creating new storage %v", err)
 	}

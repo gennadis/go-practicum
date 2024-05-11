@@ -1,4 +1,4 @@
-package storage
+package repository
 
 import (
 	"context"
@@ -14,7 +14,7 @@ var (
 	ErrURLEmptySlug     = errors.New("URL empty slug provided")
 )
 
-type URLStorage interface {
+type Repository interface {
 	AddURL(ctx context.Context, url URL) error
 	AddURLs(ctx context.Context, urls []URL) error
 	GetURL(ctx context.Context, slug string) (URL, error)
@@ -23,17 +23,17 @@ type URLStorage interface {
 	Ping(ctx context.Context) error
 }
 
-func NewURLStorage(ctx context.Context, config config.Configuration) (URLStorage, error) {
+func NewRepository(ctx context.Context, config config.Configuration) (Repository, error) {
 	switch {
 	case config.DatabaseDSN != "":
 		log.Println("storage init: Database storage selected")
-		return NewPostgresStorage(ctx, config.DatabaseDSN)
+		return NewSQLRepository(ctx, config.DatabaseDSN)
 	case config.FileStoragePath != "":
 		log.Println("storage init: File storage selected")
-		return NewFileStorage(config.FileStoragePath)
+		return NewFileRepository(config.FileStoragePath)
 	default:
 		log.Println("storage init: Memory storage selected")
-		return NewMemoryStorage(), nil
+		return NewMemoryRepository(), nil
 	}
 }
 

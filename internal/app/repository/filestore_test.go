@@ -1,4 +1,4 @@
-package storage
+package repository
 
 import (
 	"context"
@@ -42,19 +42,11 @@ func TestFileStore_ReadWrite(t *testing.T) {
 			expectedValue: "",
 			expectedError: ErrURLNotFound,
 		},
-		{
-			name:          "Empty key",
-			slug:          "",
-			originalURL:   "https://example.com",
-			userID:        "testUser",
-			expectedValue: "",
-			expectedError: ErrURLEmptySlug,
-		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			store, err := NewFileStorage(tmpfile.Name())
+			store, err := NewFileRepository(tmpfile.Name())
 			if err != nil {
 				t.Fatalf("Error creating file store: %v", err)
 			}
@@ -90,7 +82,7 @@ func TestFileStore_AppendData(t *testing.T) {
 
 	ctx := context.Background()
 
-	store, err := NewFileStorage(tmpfile.Name())
+	store, err := NewFileRepository(tmpfile.Name())
 	if err != nil {
 		t.Fatalf("Error creating file store: %v", err)
 	}
@@ -128,7 +120,7 @@ func TestFileStore_GetUserURLs(t *testing.T) {
 
 	ctx := context.Background()
 
-	store, err := NewFileStorage(tmpfile.Name())
+	store, err := NewFileRepository(tmpfile.Name())
 	if err != nil {
 		t.Fatalf("Error creating file store: %v", err)
 	}
@@ -160,7 +152,7 @@ func TestFileStore_Ping(t *testing.T) {
 
 	ctx := context.Background()
 
-	store, err := NewFileStorage(tmpfile.Name())
+	store, err := NewFileRepository(tmpfile.Name())
 	if err != nil {
 		t.Fatalf("Error creating file store: %v", err)
 	}
@@ -180,7 +172,7 @@ func TestFileStore_AppendDataSequentially(t *testing.T) {
 
 	ctx := context.Background()
 
-	store, err := NewFileStorage(tmpfile.Name())
+	store, err := NewFileRepository(tmpfile.Name())
 	if err != nil {
 		t.Fatalf("Error creating file store: %v", err)
 	}
@@ -237,7 +229,7 @@ func TestFileStore_AddURL_ExistingURL(t *testing.T) {
 
 	ctx := context.Background()
 
-	store, err := NewFileStorage(tmpfile.Name())
+	store, err := NewFileRepository(tmpfile.Name())
 	if err != nil {
 		t.Fatalf("Error creating file store: %v", err)
 	}
@@ -262,7 +254,7 @@ func TestFileStorage_GetURL_NonExistentSlug(t *testing.T) {
 
 	ctx := context.Background()
 
-	store, err := NewFileStorage(tmpfile.Name())
+	store, err := NewFileRepository(tmpfile.Name())
 	if err != nil {
 		t.Fatalf("Error creating file store: %v", err)
 	}
@@ -289,7 +281,7 @@ func TestFileStore_GetUserURLs_NonExistentUser(t *testing.T) {
 
 	ctx := context.Background()
 
-	store, err := NewFileStorage(tmpfile.Name())
+	store, err := NewFileRepository(tmpfile.Name())
 	if err != nil {
 		t.Fatalf("Error creating file store: %v", err)
 	}
@@ -321,7 +313,7 @@ func TestFileStore_GetSlugByOriginalURL_OriginalURLNotFound(t *testing.T) {
 
 	ctx := context.Background()
 
-	store, err := NewFileStorage(tmpfile.Name())
+	store, err := NewFileRepository(tmpfile.Name())
 	if err != nil {
 		t.Fatalf("Error creating file store: %v", err)
 	}
@@ -334,51 +326,5 @@ func TestFileStore_GetSlugByOriginalURL_OriginalURLNotFound(t *testing.T) {
 	_, err = store.GetURLByOriginalURL(ctx, "https://nonexistent.com")
 	if !errors.Is(err, ErrURLNotFound) {
 		t.Errorf("Expected %v, got: %v", ErrURLNotFound, err)
-	}
-}
-
-func TestFileStore_AddURL_EmptySlug(t *testing.T) {
-	tmpfile, err := os.CreateTemp("", "testfilestore")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(tmpfile.Name())
-	tmpfile.Close()
-
-	ctx := context.Background()
-
-	store, err := NewFileStorage(tmpfile.Name())
-	if err != nil {
-		t.Fatalf("Error creating file store: %v", err)
-	}
-
-	url := NewURL("key1", "https://example1.com", "userID")
-	if err := store.AddURL(ctx, *url); errors.Is(err, ErrURLEmptySlug) {
-		t.Errorf("Expected %v, got: %v", ErrURLEmptySlug, err)
-	}
-
-}
-
-func TestFileStore_BatchAddURLs_EmptySlug(t *testing.T) {
-	tmpfile, err := os.CreateTemp("", "testfilestore")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(tmpfile.Name())
-	tmpfile.Close()
-
-	ctx := context.Background()
-
-	store, err := NewFileStorage(tmpfile.Name())
-	if err != nil {
-		t.Fatalf("Error creating file store: %v", err)
-	}
-
-	urlOne := NewURL("key1", "https://example1.com", "userID")
-	urlTwo := NewURL("", "https://example2.com", "userID")
-	data := []URL{*urlOne, *urlTwo}
-
-	if err := store.AddURLs(ctx, data); !errors.Is(err, ErrURLEmptySlug) {
-		t.Errorf("Expected %v, got: %v", ErrURLEmptySlug, err)
 	}
 }

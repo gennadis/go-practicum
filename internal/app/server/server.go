@@ -4,7 +4,7 @@ import (
 	"github.com/gennadis/shorturl/internal/app/config"
 	"github.com/gennadis/shorturl/internal/app/handlers"
 	"github.com/gennadis/shorturl/internal/app/middlewares"
-	"github.com/gennadis/shorturl/internal/app/storage"
+	"github.com/gennadis/shorturl/internal/app/repository"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -12,11 +12,11 @@ import (
 
 type Server struct {
 	Router  *chi.Mux
-	storage storage.URLStorage
+	storage repository.Repository
 	config  config.Configuration
 }
 
-func NewServer(config config.Configuration, storage storage.URLStorage) *Server {
+func NewServer(config config.Configuration, storage repository.Repository) *Server {
 	return &Server{
 		Router:  chi.NewRouter(),
 		storage: storage,
