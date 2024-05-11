@@ -31,7 +31,7 @@ var (
 
 type (
 	ShortenURLRequest struct {
-		URL string `json:"url"`
+		OriginalURL string `json:"url"`
 	}
 	ShortenURLResponse struct {
 		Result string `json:"result"`
@@ -51,7 +51,7 @@ type (
 )
 
 type RequestHandler struct {
-	storage storage.Storage
+	storage storage.URLStorage
 	baseURL string
 }
 
@@ -63,7 +63,7 @@ func generateSlug() string {
 	return string(b)
 }
 
-func NewRequestHandler(storage storage.Storage, baseURL string) *RequestHandler {
+func NewRequestHandler(storage storage.URLStorage, baseURL string) *RequestHandler {
 	return &RequestHandler{
 		storage: storage,
 		baseURL: baseURL,
@@ -115,6 +115,7 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
+
 	if len(originalURL) == 0 {
 		log.Println("missing url parameter")
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -122,22 +123,19 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 	}
 
 	slug := generateSlug()
-	shortURL := rh.baseURL + "/" + slug
-	log.Printf("original url %s, shortened url: %s", originalURL, shortURL)
+	url := storage.NewURL(slug, string(originalURL), userID)
+	log.Printf("original url %s, shortened url: %s", originalURL, url)
 
-	if err := rh.storage.AddURL(slug, string(originalURL), userID); err != nil {
-		if errors.Is(err, storage.ErrorURLAlreadyExists) {
-			log.Printf("original url %s already exists in storage", originalURL)
-
-			existingSlug, err := rh.storage.GetSlugByOriginalURL(string(originalURL), userID)
+	if err := rh.storage.AddURL(*url); err != nil {
+		if errors.Is(err, storage.ErrURLAlreadyExists) {
+			existingURL, err := rh.storage.GetURLByOriginalURL(string(originalURL))
 			if err != nil {
 				log.Printf("error reading existing slug for %s: %s", originalURL, err)
 				http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 				return
 			}
 
-			existingShortURL := rh.baseURL + "/" + existingSlug
-			rh.respondWithPlainText(w, existingShortURL, http.StatusConflict)
+			rh.respondWithPlainText(w, rh.baseURL+"/"+existingURL.Slug, http.StatusConflict)
 			return
 		}
 
@@ -146,7 +144,7 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	rh.respondWithPlainText(w, shortURL, http.StatusCreated)
+	rh.respondWithPlainText(w, rh.baseURL+"/"+url.Slug, http.StatusCreated)
 }
 
 func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Request) {
@@ -164,40 +162,39 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if shortenReq.URL == "" {
+	if len(shortenReq.OriginalURL) == 0 {
 		log.Println("missing url parameter")
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
 	slug := generateSlug()
-	shortURL := rh.baseURL + "/" + slug
-	log.Printf("original url %s, shortened url: %s", shortenReq.URL, shortURL)
+	url := storage.NewURL(slug, shortenReq.OriginalURL, userID)
+	log.Printf("original url %s, shortened url: %s", shortenReq.OriginalURL, url)
 
-	if err := rh.storage.AddURL(slug, string(shortenReq.URL), userID); err != nil {
-		if errors.Is(err, storage.ErrorURLAlreadyExists) {
-			existingSlug, err := rh.storage.GetSlugByOriginalURL(string(shortenReq.URL), userID)
+	if err := rh.storage.AddURL(*url); err != nil {
+		if errors.Is(err, storage.ErrURLAlreadyExists) {
+			existingURL, err := rh.storage.GetURLByOriginalURL(string(shortenReq.OriginalURL))
 			if err != nil {
-				log.Printf("error reading existing slug for %s: %s", shortenReq.URL, err)
+				log.Printf("error reading existing slug for %s: %s", shortenReq.OriginalURL, err)
 				http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 				return
 			}
 
-			existingShortURL := rh.baseURL + "/" + existingSlug
-			rh.respondWithJson(w, http.StatusConflict, ShortenURLResponse{Result: existingShortURL})
+			rh.respondWithJson(w, http.StatusConflict, ShortenURLResponse{Result: rh.baseURL + "/" + existingURL.Slug})
 			return
 		}
 
-		log.Println("error writing to storage:", err)
+		log.Println("error saving URL:", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
-	rh.respondWithJson(w, http.StatusCreated, ShortenURLResponse{Result: shortURL})
+	rh.respondWithJson(w, http.StatusCreated, ShortenURLResponse{Result: rh.baseURL + "/" + url.Slug})
 }
 
 func (rh *RequestHandler) HandleExpandURL(w http.ResponseWriter, r *http.Request) {
-	userID, err := rh.getUserIDFromCtx(r)
+	_, err := rh.getUserIDFromCtx(r)
 	if errors.Is(err, ErrorMissingUserIDCtx) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
@@ -206,15 +203,15 @@ func (rh *RequestHandler) HandleExpandURL(w http.ResponseWriter, r *http.Request
 	slug := r.URL.Path[1:]
 	log.Printf("originalURL for slug %s requested", slug)
 
-	originalURL, err := rh.storage.GetURL(slug, userID)
+	url, err := rh.storage.GetURL(slug)
 	if err != nil {
 		log.Printf("error retrieving original URL: %v", err)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-	log.Printf("originalURL for slug %s found: %s", slug, originalURL)
+	log.Printf("originalURL for slug %s found: %s", slug, url.OriginalURL)
 
-	w.Header().Set("Location", originalURL)
+	w.Header().Set("Location", url.OriginalURL)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
@@ -230,20 +227,22 @@ func (rh *RequestHandler) HandleGetUserURLs(w http.ResponseWriter, r *http.Reque
 	}
 	log.Printf("urls for user %s requested", userID)
 
-	userURLs := rh.storage.GetURLsByUser(userID)
-	if len(userURLs) == 0 {
+	urls, err := rh.storage.GetURLsByUser(userID)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+	}
+	if len(urls) == 0 {
 		log.Printf("no urls for user %s found", userID)
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
-	var resp []UserURL
-	for slug, originalURL := range userURLs {
-		shortURL := rh.baseURL + "/" + slug
-		resp = append(resp, UserURL{ShortUrl: shortURL, OriginalURL: originalURL})
+	var userURLs []UserURL
+	for _, url := range urls {
+		userURLs = append(userURLs, UserURL{ShortUrl: rh.baseURL + "/" + url.Slug, OriginalURL: url.OriginalURL})
 	}
 
-	rh.respondWithJson(w, http.StatusOK, resp)
+	rh.respondWithJson(w, http.StatusOK, userURLs)
 }
 
 func (rh *RequestHandler) HandleDatabasePing(w http.ResponseWriter, r *http.Request) {
@@ -277,7 +276,7 @@ func (rh *RequestHandler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *ht
 	}
 
 	var batchShortenResp []BatchShortenURLResponse
-	var batchURLs []storage.BatchURLsElement
+	var batchURLs []storage.URL
 	for _, el := range batchShortenReq {
 		if el.OriginalURL == "" {
 			log.Println("missing url parameter")
@@ -286,14 +285,14 @@ func (rh *RequestHandler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *ht
 		}
 
 		slug := generateSlug()
-		shortURL := rh.baseURL + "/" + slug
-		log.Printf("original url %s, shortened url: %s", el.OriginalURL, shortURL)
-
-		batchURLs = append(batchURLs, storage.BatchURLsElement{Slug: slug, OriginalURL: el.OriginalURL})
-		batchShortenResp = append(batchShortenResp, BatchShortenURLResponse{CorrelationID: el.CorrelationID, ShortURL: shortURL})
+		url := rh.baseURL + "/" + slug
+		log.Printf("original url %s, shortened url: %s", el.OriginalURL, url)
+		URL := storage.NewURL(slug, el.OriginalURL, userID)
+		batchURLs = append(batchURLs, *URL)
+		batchShortenResp = append(batchShortenResp, BatchShortenURLResponse{CorrelationID: el.CorrelationID, ShortURL: url})
 	}
 
-	err = rh.storage.BatchAddURLs(batchURLs, userID)
+	err = rh.storage.AddURLs(batchURLs)
 	if err != nil {
 		log.Println("error batch adding urls:", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"reflect"
 	"testing"
@@ -17,34 +18,34 @@ func TestFileStore_ReadWrite(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		key           string
-		value         string
+		slug          string
+		originalURL   string
 		userID        string
 		expectedValue string
 		expectedError error
 	}{
 		{
 			name:          "Valid key-value pair",
-			key:           "key1",
-			value:         "https://example.com",
+			slug:          "key1",
+			originalURL:   "https://example.com",
 			userID:        "testUser",
 			expectedValue: "https://example.com",
 			expectedError: nil,
 		},
 		{
 			name:          "Non-existent key",
-			key:           "nonexistent",
+			slug:          "nonexistent",
 			userID:        "testUser",
 			expectedValue: "",
-			expectedError: ErrorSlugUnknown,
+			expectedError: ErrURLNotFound,
 		},
 		{
 			name:          "Empty key",
-			key:           "",
-			value:         "https://example.com",
+			slug:          "",
+			originalURL:   "https://example.com",
 			userID:        "testUser",
 			expectedValue: "",
-			expectedError: ErrorSlugEmpty,
+			expectedError: ErrURLEmptySlug,
 		},
 	}
 
@@ -54,8 +55,14 @@ func TestFileStore_ReadWrite(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Error creating file store: %v", err)
 			}
-
-			err = store.AddURL(test.key, test.value, test.userID)
+			url := NewURL(test.slug, test.originalURL, test.userID)
+			if err := store.AddURL(*url); err != nil {
+				if err != test.expectedError {
+					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
+				}
+				return
+			}
+			createdURL, err := store.GetURL(test.slug)
 			if err != nil {
 				if err != test.expectedError {
 					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
@@ -63,16 +70,8 @@ func TestFileStore_ReadWrite(t *testing.T) {
 				return
 			}
 
-			readValue, err := store.GetURL(test.key, test.userID)
-			if err != nil {
-				if err != test.expectedError {
-					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
-				}
-				return
-			}
-
-			if readValue != test.expectedValue {
-				t.Errorf("Expected value %s, got %s", test.expectedValue, readValue)
+			if createdURL.OriginalURL != test.expectedValue {
+				t.Errorf("Expected value %s, got %s", test.expectedValue, createdURL)
 			}
 		})
 	}
@@ -91,16 +90,11 @@ func TestFileStore_AppendData(t *testing.T) {
 		t.Fatalf("Error creating file store: %v", err)
 	}
 
-	data := map[string]string{
-		"key1": "value1",
-		"key2": "value2",
-		"key3": "value3",
-	}
-
-	for key, value := range data {
-		if err := store.AddURL(key, value, "userID"); err != nil {
-			t.Fatalf("Error writing to store: %v", err)
-		}
+	urlOne := NewURL("key1", "https://example1.com", "userID")
+	urlTwo := NewURL("key2", "https://example2.com", "userID")
+	data := []URL{*urlOne, *urlTwo}
+	if err := store.AddURLs(data); err != nil {
+		t.Fatalf("Error writing to store: %v", err)
 	}
 
 	fileContent, err := os.Open(tmpfile.Name())
@@ -108,20 +102,14 @@ func TestFileStore_AppendData(t *testing.T) {
 		t.Fatalf("Error reading file content: %v", err)
 	}
 
-	var fileData map[string]map[string]string
+	var fileData []URL
 	decoder := json.NewDecoder(fileContent)
 	if err := decoder.Decode(&fileData); err != nil {
 		t.Fatalf("Error decoding JSON: %v", err)
 	}
 
-	for key, expectedValue := range data {
-		if userURLs, ok := fileData["userID"]; ok {
-			if value, ok := userURLs[key]; !ok || value != expectedValue {
-				t.Errorf("Expected value %s for key %s, got %s", expectedValue, key, value)
-			}
-		} else {
-			t.Errorf("Expected userID map not found in file data")
-		}
+	if !reflect.DeepEqual(data, fileData) {
+		t.Errorf("Expected data is full")
 	}
 }
 
@@ -138,19 +126,18 @@ func TestFileStore_GetUserURLs(t *testing.T) {
 		t.Fatalf("Error creating file store: %v", err)
 	}
 
-	data := map[string]string{
-		"key1": "https://example1.com",
-		"key2": "https://example2.com",
+	urlOne := NewURL("key1", "https://example1.com", "userID")
+	urlTwo := NewURL("key2", "https://example2.com", "userID")
+	data := []URL{*urlOne, *urlTwo}
+
+	if err := store.AddURLs(data); err != nil {
+		t.Fatalf("Error writing to store: %v", err)
 	}
 
-	for key, value := range data {
-		if err := store.AddURL(key, value, "userID"); err != nil {
-			t.Fatalf("Error writing to store: %v", err)
-		}
+	urls, err := store.GetURLsByUser("userID")
+	if err != nil {
+		t.Fatalf("Error getting user urls: %v", err)
 	}
-
-	urls := store.GetURLsByUser("userID")
-
 	if !reflect.DeepEqual(urls, data) {
 		t.Errorf("Expected URLs %+v, got %+v", data, urls)
 	}
@@ -170,7 +157,7 @@ func TestFileStore_Ping(t *testing.T) {
 	}
 
 	if err := store.Ping(); err != nil {
-		t.Errorf("Expected ping err nil, got err %s", err)
+		t.Errorf("Expected %v, got %s", nil, err)
 	}
 }
 
@@ -187,16 +174,12 @@ func TestFileStore_AppendDataSequentially(t *testing.T) {
 		t.Fatalf("Error creating file store: %v", err)
 	}
 
-	data := map[string]string{
-		"key1": "value1",
-		"key2": "value2",
-		"key3": "value3",
-	}
+	urlOne := NewURL("key1", "https://example1.com", "userID")
+	urlTwo := NewURL("key2", "https://example2.com", "userID")
+	data := []URL{*urlOne, *urlTwo}
 
-	for key, value := range data {
-		if err := store.AddURL(key, value, "userID"); err != nil {
-			t.Fatalf("Error writing to store: %v", err)
-		}
+	if err := store.AddURLs(data); err != nil {
+		t.Fatalf("Error writing to store: %v", err)
 	}
 
 	fileContent, err := os.Open(tmpfile.Name())
@@ -204,31 +187,21 @@ func TestFileStore_AppendDataSequentially(t *testing.T) {
 		t.Fatalf("Error reading file content: %v", err)
 	}
 
-	var fileData map[string]map[string]string
+	var fileData []URL
 	decoder := json.NewDecoder(fileContent)
 	if err := decoder.Decode(&fileData); err != nil {
 		t.Fatalf("Error decoding JSON: %v", err)
 	}
-
-	for key, expectedValue := range data {
-		if userURLs, ok := fileData["userID"]; ok {
-			if value, ok := userURLs[key]; !ok || value != expectedValue {
-				t.Errorf("Expected value %s for key %s, got %s", expectedValue, key, value)
-			}
-		} else {
-			t.Errorf("Expected userID map not found in file data")
-		}
+	if !reflect.DeepEqual(data, fileData) {
+		t.Errorf("Expected data is full")
 	}
 
-	additionalData := map[string]string{
-		"key4": "value4",
-		"key5": "value5",
-	}
+	urlThree := NewURL("key3", "https://example3.com", "userID")
+	urlFour := NewURL("key4", "https://example4.com", "userID")
+	moreData := []URL{*urlThree, *urlFour}
 
-	for key, value := range additionalData {
-		if err := store.AddURL(key, value, "userID"); err != nil {
-			t.Fatalf("Error writing to store: %v", err)
-		}
+	if err := store.AddURLs(moreData); err != nil {
+		t.Fatalf("Error writing to store: %v", err)
 	}
 
 	_, _ = fileContent.Seek(0, 0)
@@ -237,14 +210,9 @@ func TestFileStore_AppendDataSequentially(t *testing.T) {
 		t.Fatalf("Error decoding JSON: %v", err)
 	}
 
-	for key, expectedValue := range additionalData {
-		if userURLs, ok := fileData["userID"]; ok {
-			if value, ok := userURLs[key]; !ok || value != expectedValue {
-				t.Errorf("Expected value %s for key %s, got %s", expectedValue, key, value)
-			}
-		} else {
-			t.Errorf("Expected userID map not found in file data")
-		}
+	expectedData := append(data, moreData...)
+	if !reflect.DeepEqual(expectedData, fileData) {
+		t.Errorf("Expected data is full")
 	}
 }
 
@@ -261,34 +229,13 @@ func TestFileStore_AddURL_ExistingURL(t *testing.T) {
 		t.Fatalf("Error creating file store: %v", err)
 	}
 
-	key := "key1"
-	value := "value1"
-	if err := store.AddURL(key, value, "userID"); err != nil {
-		t.Fatalf("Error adding URL: %v", err)
+	url := NewURL("key1", "https://example1.com", "userID")
+	if err := store.AddURL(*url); err != nil {
+		t.Fatalf("Error writing to store: %v", err)
 	}
 
-	if err := store.AddURL(key, value, "userID"); err != ErrorURLAlreadyExists {
-		t.Errorf("Expected ErrorURLAlreadyExists, got: %v", err)
-	}
-}
-
-func TestFileStorage_Ping(t *testing.T) {
-	tmpfile, err := os.CreateTemp("", "testfilestore")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(tmpfile.Name())
-	tmpfile.Close()
-
-	store, err := NewFileStorage(tmpfile.Name())
-	if err != nil {
-		t.Fatalf("Error creating file store: %v", err)
-	}
-
-	err = store.Ping()
-
-	if err != nil {
-		t.Errorf("Expected nil error, got: %v", err)
+	if err := store.AddURL(*url); !errors.Is(err, ErrURLAlreadyExists) {
+		t.Errorf("Expected %v, got: %v", ErrURLAlreadyExists, err)
 	}
 }
 
@@ -305,17 +252,15 @@ func TestFileStorage_GetURL_NonExistentSlug(t *testing.T) {
 		t.Fatalf("Error creating file store: %v", err)
 	}
 
-	key := "key1"
-	value := "https://example1.com"
-	userID := "userID"
-	if err := store.AddURL(key, value, userID); err != nil {
+	url := NewURL("key1", "https://example1.com", "userID")
+	if err := store.AddURL(*url); err != nil {
 		t.Fatalf("Error adding URL: %v", err)
 	}
 
 	nonExistentSlug := "nonexistent"
-	_, err = store.GetURL(nonExistentSlug, userID)
-	if err != ErrorSlugUnknown {
-		t.Errorf("Expected ErrorSlugUnknown, got: %v", err)
+	_, err = store.GetURL(nonExistentSlug)
+	if !errors.Is(err, ErrURLNotFound) {
+		t.Errorf("Expected %v, got: %v", ErrURLNotFound, err)
 	}
 }
 
@@ -332,20 +277,20 @@ func TestFileStore_GetUserURLs_NonExistentUser(t *testing.T) {
 		t.Fatalf("Error creating file store: %v", err)
 	}
 
-	data := map[string]string{
-		"key1": "https://example1.com",
-		"key2": "https://example2.com",
+	urlOne := NewURL("key1", "https://example1.com", "userID")
+	urlTwo := NewURL("key2", "https://example2.com", "userID")
+	data := []URL{*urlOne, *urlTwo}
+
+	if err := store.AddURLs(data); err != nil {
+		t.Fatalf("Error writing to store: %v", err)
 	}
 
-	for key, value := range data {
-		if err := store.AddURL(key, value, "userID"); err != nil {
-			t.Fatalf("Error writing to store: %v", err)
-		}
+	urls, err := store.GetURLsByUser("nonexistent")
+	if len(urls) != 0 {
+		t.Errorf("Expected zero len res, got: %v", urls)
 	}
-
-	nonExistentUserURLs := store.GetURLsByUser("nonexistent")
-	if len(nonExistentUserURLs) != 0 {
-		t.Errorf("Expected empty map, got: %v", nonExistentUserURLs)
+	if !errors.Is(err, ErrURLNotFound) {
+		t.Errorf("Expected %v, got: %v", ErrURLNotFound, err)
 	}
 }
 
@@ -362,16 +307,14 @@ func TestFileStore_GetSlugByOriginalURL_OriginalURLNotFound(t *testing.T) {
 		t.Fatalf("Error creating file store: %v", err)
 	}
 
-	key := "key1"
-	value := "https://example1.com"
-	userID := "userID"
-	if err := store.AddURL(key, value, userID); err != nil {
+	url := NewURL("key1", "https://example1.com", "userID")
+	if err := store.AddURL(*url); err != nil {
 		t.Fatalf("Error adding URL: %v", err)
 	}
 
-	_, err = store.GetSlugByOriginalURL("https://nonexistent.com", userID)
-	if err != ErrorSlugUnknown {
-		t.Errorf("Expected ErrorSlugUnknown, got: %v", err)
+	_, err = store.GetURLByOriginalURL("https://nonexistent.com")
+	if !errors.Is(err, ErrURLNotFound) {
+		t.Errorf("Expected %v, got: %v", ErrURLNotFound, err)
 	}
 }
 
@@ -388,10 +331,11 @@ func TestFileStore_AddURL_EmptySlug(t *testing.T) {
 		t.Fatalf("Error creating file store: %v", err)
 	}
 
-	err = store.AddURL("", "https://example.com", "userID")
-	if err != ErrorSlugEmpty {
-		t.Errorf("Expected ErrorSlugEmpty, got: %v", err)
+	url := NewURL("key1", "https://example1.com", "userID")
+	if err := store.AddURL(*url); errors.Is(err, ErrURLEmptySlug) {
+		t.Errorf("Expected %v, got: %v", ErrURLEmptySlug, err)
 	}
+
 }
 
 func TestFileStore_BatchAddURLs_EmptySlug(t *testing.T) {
@@ -407,15 +351,11 @@ func TestFileStore_BatchAddURLs_EmptySlug(t *testing.T) {
 		t.Fatalf("Error creating file store: %v", err)
 	}
 
-	batch := []BatchURLsElement{
-		{Slug: "", OriginalURL: "https://example.com"},
-		{Slug: "key2", OriginalURL: "https://example2.com"},
-	}
+	urlOne := NewURL("key1", "https://example1.com", "userID")
+	urlTwo := NewURL("", "https://example2.com", "userID")
+	data := []URL{*urlOne, *urlTwo}
 
-	userID := "userID"
-
-	err = store.BatchAddURLs(batch, userID)
-	if err != ErrorSlugEmpty {
-		t.Errorf("Expected ErrorSlugEmpty, got: %v", err)
+	if err := store.AddURLs(data); !errors.Is(err, ErrURLEmptySlug) {
+		t.Errorf("Expected %v, got: %v", ErrURLEmptySlug, err)
 	}
 }

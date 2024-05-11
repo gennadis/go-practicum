@@ -17,11 +17,6 @@ type PostgresStore struct {
 	ctx context.Context
 }
 
-type BatchURLsElement struct {
-	Slug        string
-	OriginalURL string
-}
-
 func NewPostgresStorage(ctx context.Context, postgresDSN string) (*PostgresStore, error) {
 	db, err := sql.Open("pgx", postgresDSN)
 	if err != nil {
@@ -50,26 +45,26 @@ func NewPostgresStorage(ctx context.Context, postgresDSN string) (*PostgresStore
 	return &PostgresStore{db: db, ctx: ctx}, nil
 }
 
-func (p *PostgresStore) AddURL(slug string, originalURL string, userID string) error {
+func (p *PostgresStore) AddURL(url URL) error {
 	query := `
 	INSERT INTO url
 	(slug, original_url, user_uuid)
 	VALUES ($1, $2, $3);
 	`
 
-	_, err := p.db.ExecContext(p.ctx, query, slug, originalURL, userID)
+	_, err := p.db.ExecContext(p.ctx, query, url.Slug, url.OriginalURL, url.UserID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-			log.Printf("unique originalURL violation for %s", originalURL)
-			return ErrorURLAlreadyExists
+			log.Printf("unique originalURL violation for %s", url.OriginalURL)
+			return ErrURLAlreadyExists
 		}
 		return fmt.Errorf("failed to add URL: %w", err)
 	}
 	return nil
 }
 
-func (p *PostgresStore) BatchAddURLs(urlsBatch []BatchURLsElement, userID string) error {
+func (p *PostgresStore) AddURLs(urls []URL) error {
 	tx, err := p.db.Begin()
 	if err != nil {
 		return err
@@ -94,8 +89,8 @@ func (p *PostgresStore) BatchAddURLs(urlsBatch []BatchURLsElement, userID string
 	}
 	defer stmt.Close()
 
-	for _, u := range urlsBatch {
-		if _, err = stmt.ExecContext(p.ctx, u.Slug, u.OriginalURL, userID); err != nil {
+	for _, url := range urls {
+		if _, err = stmt.ExecContext(p.ctx, url.Slug, url.OriginalURL, url.UserID); err != nil {
 			return err
 		}
 	}
@@ -103,25 +98,25 @@ func (p *PostgresStore) BatchAddURLs(urlsBatch []BatchURLsElement, userID string
 	return tx.Commit()
 }
 
-func (p *PostgresStore) GetURL(slug string, userID string) (string, error) {
-	var originalURL string
+func (p *PostgresStore) GetURL(slug string) (URL, error) {
+	var url URL
 
 	query := `
-	SELECT original_url
+	SELECT slug, original_url, user_uuid
 	FROM url
 	WHERE slug = $1;
 	`
 
-	err := p.db.QueryRowContext(p.ctx, query, slug).Scan(&originalURL)
+	err := p.db.QueryRowContext(p.ctx, query, slug).Scan(&url.Slug, &url.OriginalURL, &url.UserID)
 	if err != nil {
-		return "", fmt.Errorf("failed to read URL: slug %s, error: %w", slug, err)
+		return URL{}, ErrURLNotFound
 	}
 
-	return originalURL, nil
+	return url, nil
 }
 
-func (p *PostgresStore) GetURLsByUser(userID string) map[string]string {
-	urls := make(map[string]string)
+func (p *PostgresStore) GetURLsByUser(userID string) ([]URL, error) {
+	urls := []URL{}
 
 	query := `
 	SELECT slug, original_url
@@ -132,7 +127,7 @@ func (p *PostgresStore) GetURLsByUser(userID string) map[string]string {
 	rows, err := p.db.QueryContext(p.ctx, query, userID)
 	if err != nil {
 		log.Printf("Error querying user URLs: %v", err)
-		return urls
+		return urls, ErrURLNotFound
 	}
 	defer rows.Close()
 
@@ -140,33 +135,36 @@ func (p *PostgresStore) GetURLsByUser(userID string) map[string]string {
 		var slug, originalURL string
 		if err := rows.Scan(&slug, &originalURL); err != nil {
 			log.Printf("Error scanning row: %v", err)
-			return urls
+			return urls, ErrURLNotFound
 		}
-		urls[slug] = originalURL
+		url := NewURL(slug, originalURL, userID)
+		urls = append(urls, *url)
 	}
 
 	if err := rows.Err(); err != nil {
 		log.Printf("Error iterating rows: %v", err)
+		return urls, ErrURLNotFound
 	}
 
-	return urls
+	return urls, nil
 }
 
-func (p *PostgresStore) GetSlugByOriginalURL(originalURL string, userID string) (string, error) {
-	var slug string
+func (p *PostgresStore) GetURLByOriginalURL(originalURL string) (URL, error) {
+	var slug, userID string
 
 	query := `
-	SELECT slug
+	SELECT slug, user_uuid
 	FROM url
 	WHERE original_url = $1;
 	`
 
-	err := p.db.QueryRowContext(p.ctx, query, originalURL).Scan(&slug)
+	err := p.db.QueryRowContext(p.ctx, query, originalURL).Scan(&slug, &userID)
 	if err != nil {
-		return "", fmt.Errorf("failed to read slug: originalURL %s, error: %w", slug, err)
+		return URL{}, ErrURLNotFound
 	}
 
-	return slug, nil
+	url := NewURL(slug, originalURL, userID)
+	return *url, nil
 }
 
 func (p *PostgresStore) Ping() error {

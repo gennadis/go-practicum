@@ -9,32 +9,44 @@ import (
 )
 
 var (
-	ErrorUserIDUnknown    = errors.New("unknown userID provided")
-	ErrorSlugUnknown      = errors.New("unknown slug provided")
-	ErrorSlugEmpty        = errors.New("empty slug provided")
-	ErrorURLAlreadyExists = errors.New("URL already exists")
+	ErrURLNotFound      = errors.New("URL not found")
+	ErrURLAlreadyExists = errors.New("URL already exists")
+	ErrURLEmptySlug     = errors.New("URL empty slug provided")
 )
 
-type Storage interface {
-	AddURL(slug string, originalURL string, userID string) error
-	BatchAddURLs(urlsBatch []BatchURLsElement, userID string) error
-	GetURL(slug string, userID string) (string, error)
-	GetURLsByUser(userID string) map[string]string
-	GetSlugByOriginalURL(originalURL string, userID string) (string, error)
+type URLStorage interface {
+	AddURL(url URL) error
+	AddURLs(urls []URL) error
+	GetURL(slug string) (URL, error)
+	GetURLsByUser(userID string) ([]URL, error)
+	GetURLByOriginalURL(originalURL string) (URL, error)
 	Ping() error
 }
 
-func NewStorage(ctx context.Context, config config.Configuration) (Storage, error) {
-	if config.DatabaseDSN != "" {
-		log.Println("initializing storage: Database storage selected")
+func NewStorage(ctx context.Context, config config.Configuration) (URLStorage, error) {
+	switch {
+	case config.DatabaseDSN != "":
+		log.Println("storage init: Database storage selected")
 		return NewPostgresStorage(ctx, config.DatabaseDSN)
+	case config.FileStoragePath != "":
+		log.Println("storage init: File storage selected")
+		return NewFileStorage(config.FileStoragePath)
+	default:
+		log.Println("storage init: Memory storage selected")
+		return NewMemoryStorage(), nil
 	}
+}
 
-	if path := config.FileStoragePath; path != "" {
-		log.Println("initializing storage: File storage selected")
-		return NewFileStorage(path)
+type URL struct {
+	Slug        string `json:"slug"`
+	OriginalURL string `json:"originalURL"`
+	UserID      string `json:"userID"`
+}
+
+func NewURL(slug string, originalURL string, userID string) *URL {
+	return &URL{
+		Slug:        slug,
+		OriginalURL: originalURL,
+		UserID:      userID,
 	}
-
-	log.Println("initializing storage: Memory storage selected")
-	return NewMemoryStorage(), nil
 }

@@ -7,13 +7,13 @@ import (
 
 type FileStorage struct {
 	filename string
-	data     map[string]map[string]string // map[userID]map[slug][originalURL]
+	store    []URL
 }
 
 func NewFileStorage(filename string) (*FileStorage, error) {
 	fs := &FileStorage{
 		filename: filename,
-		data:     make(map[string]map[string]string),
+		store:    []URL{},
 	}
 
 	if err := fs.loadData(); err != nil {
@@ -22,8 +22,8 @@ func NewFileStorage(filename string) (*FileStorage, error) {
 	return fs, nil
 }
 
-func (f *FileStorage) loadData() error {
-	file, err := os.OpenFile(f.filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0777)
+func (fs *FileStorage) loadData() error {
+	file, err := os.OpenFile(fs.filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0777)
 	if err != nil {
 		return err
 	}
@@ -35,102 +35,98 @@ func (f *FileStorage) loadData() error {
 	}
 
 	if fileInfo.Size() == 0 {
-		// if the file is empty, initialize an empty data map
-		f.data = make(map[string]map[string]string)
+		fs.store = []URL{}
 		return nil
 	}
 
 	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(&f.data); err != nil {
+	if err := decoder.Decode(&fs.store); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (f *FileStorage) saveData() error {
-	file, err := os.OpenFile(f.filename, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
+func (fs *FileStorage) saveData() error {
+	file, err := os.OpenFile(fs.filename, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0644)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
 	encoder := json.NewEncoder(file)
-	if err := encoder.Encode(f.data); err != nil {
+	encoder.SetIndent("", "    ")
+	if err := encoder.Encode(fs.store); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (f *FileStorage) AddURL(slug string, originalURL string, userID string) error {
-	if slug == "" {
-		return ErrorSlugEmpty
+func (fs *FileStorage) AddURL(URL URL) error {
+	if URL.Slug == "" {
+		return ErrURLEmptySlug
 	}
-	userURLs, ok := f.data[userID]
 
 	// check if the original URL already exists for any user
-	for _, userURLs := range f.data {
-		for _, url := range userURLs {
-			if url == originalURL {
-				return ErrorURLAlreadyExists
-			}
+	for _, entry := range fs.store {
+		if entry.OriginalURL == URL.OriginalURL {
+			return ErrURLAlreadyExists
 		}
 	}
 
-	if !ok {
-		userURLs = make(map[string]string)
-	}
-	userURLs[slug] = originalURL
-	f.data[userID] = userURLs
+	fs.store = append(fs.store, URL)
 
-	if err := f.saveData(); err != nil {
+	if err := fs.saveData(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (f *FileStorage) BatchAddURLs(urlsBatch []BatchURLsElement, userID string) error {
-	for _, element := range urlsBatch {
-		if err := f.AddURL(element.Slug, element.OriginalURL, userID); err != nil {
+func (fs *FileStorage) AddURLs(URLs []URL) error {
+	for _, URL := range URLs {
+		if err := fs.AddURL(URL); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (f *FileStorage) GetURL(slug string, userID string) (string, error) {
-	slugURLpairs := make(map[string]string)
-	for _, innerMap := range f.data {
-		for key, value := range innerMap {
-			slugURLpairs[key] = value
+func (fs *FileStorage) GetURL(slug string) (URL, error) {
+	if slug == "" {
+		return URL{}, ErrURLEmptySlug
+	}
+
+	for _, URL := range fs.store {
+		if URL.Slug == slug {
+			return URL, nil
+		}
+	}
+	return URL{}, ErrURLNotFound
+}
+
+func (fs *FileStorage) GetURLsByUser(userID string) ([]URL, error) {
+	var userURLs []URL
+
+	for _, URL := range fs.store {
+		if URL.UserID == userID {
+			userURLs = append(userURLs, URL)
 		}
 	}
 
-	originalURL, ok := slugURLpairs[slug]
-	if !ok {
-		return "", ErrorSlugUnknown
+	if len(userURLs) == 0 {
+		return nil, ErrURLNotFound
 	}
-	return originalURL, nil
+	return userURLs, nil
 }
 
-func (f *FileStorage) GetURLsByUser(userID string) map[string]string {
-	userURLs, ok := f.data[userID]
-	if !ok {
-		return make(map[string]string)
-	}
-	return userURLs
-}
-
-func (f *FileStorage) GetSlugByOriginalURL(originalURL string, userID string) (string, error) {
-	for _, userURLs := range f.data {
-		for slug, url := range userURLs {
-			if url == originalURL {
-				return slug, nil
-			}
+func (fs *FileStorage) GetURLByOriginalURL(originalURL string) (URL, error) {
+	for _, URL := range fs.store {
+		if URL.OriginalURL == originalURL {
+			return URL, nil
 		}
 	}
-	return "", ErrorSlugUnknown
+	return URL{}, ErrURLNotFound
 }
 
-func (f *FileStorage) Ping() error {
+func (fs *FileStorage) Ping() error {
 	return nil
 }

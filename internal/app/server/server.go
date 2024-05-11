@@ -12,11 +12,11 @@ import (
 
 type Server struct {
 	Router  *chi.Mux
-	storage storage.Storage
+	storage storage.URLStorage
 	config  config.Configuration
 }
 
-func NewServer(config config.Configuration, storage storage.Storage) *Server {
+func NewServer(config config.Configuration, storage storage.URLStorage) *Server {
 	return &Server{
 		Router:  chi.NewRouter(),
 		storage: storage,

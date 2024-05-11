@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 )
@@ -8,34 +9,34 @@ import (
 func TestMemStore_ReadWrite(t *testing.T) {
 	tests := []struct {
 		name          string
-		key           string
-		value         string
+		slug          string
+		originalURL   string
 		userID        string
 		expectedValue string
 		expectedError error
 	}{
 		{
 			name:          "Valid key-value pair",
-			key:           "key",
-			value:         "https://example.com",
+			slug:          "key",
+			originalURL:   "https://example.com",
 			userID:        "testUser",
 			expectedValue: "https://example.com",
 			expectedError: nil,
 		},
 		{
 			name:          "Non-existent key",
-			key:           "nonexistent",
+			slug:          "nonexistent",
 			userID:        "testUser",
 			expectedValue: "",
-			expectedError: ErrorSlugUnknown,
+			expectedError: ErrURLNotFound,
 		},
 		{
 			name:          "Empty key",
-			key:           "",
-			value:         "https://example.com",
+			slug:          "",
+			originalURL:   "https://example.com",
 			userID:        "testUser",
 			expectedValue: "",
-			expectedError: ErrorSlugEmpty,
+			expectedError: ErrURLEmptySlug,
 		},
 	}
 
@@ -43,45 +44,41 @@ func TestMemStore_ReadWrite(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			store := NewMemoryStorage()
 
-			err := store.AddURL(test.key, test.value, test.userID)
-			if err != nil {
-				if err != test.expectedError {
+			url := NewURL(test.slug, test.originalURL, test.userID)
+			if err := store.AddURL(*url); err != nil {
+				if !errors.Is(err, test.expectedError) {
 					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
 				}
-				return
 			}
 
-			readValue, err := store.GetURL(test.key, test.userID)
+			createdURL, err := store.GetURL(test.slug)
 			if err != nil {
-				if err != test.expectedError {
+				if !errors.Is(err, test.expectedError) {
 					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
 				}
-				return
 			}
 
-			if readValue != test.expectedValue {
-				t.Errorf("Expected value %s, got %s", test.expectedValue, readValue)
+			if createdURL.OriginalURL != test.expectedValue {
+				t.Errorf("Expected value %s, got %s", test.expectedValue, createdURL)
 			}
 		})
 	}
 }
 
 func TestMemStore_GetUserURLs(t *testing.T) {
+	urlOne := NewURL("key1", "https://example1.com", "userID")
+	urlTwo := NewURL("key2", "https://example2.com", "userID")
+	data := []URL{*urlOne, *urlTwo}
+
 	tests := []struct {
 		name           string
-		data           map[string]string
-		expectedResult map[string]string
+		data           []URL
+		expectedResult []URL
 	}{
 		{
-			name: "Valid data",
-			data: map[string]string{
-				"key1": "https://example1.com",
-				"key2": "https://example2.com",
-			},
-			expectedResult: map[string]string{
-				"key1": "https://example1.com",
-				"key2": "https://example2.com",
-			},
+			name:           "Valid data",
+			data:           data,
+			expectedResult: data,
 		},
 	}
 
@@ -89,13 +86,14 @@ func TestMemStore_GetUserURLs(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			store := NewMemoryStorage()
 
-			for key, value := range test.data {
-				if err := store.AddURL(key, value, "userID"); err != nil {
-					t.Fatalf("Error writing to store: %v", err)
-				}
+			if err := store.AddURLs(test.data); err != nil {
+				t.Fatalf("Error writing to store: %v", err)
 			}
 
-			urls := store.GetURLsByUser("userID")
+			urls, err := store.GetURLsByUser("userID")
+			if err != nil {
+				t.Fatalf("Error getting user urls: %v", err)
+			}
 
 			if !reflect.DeepEqual(urls, test.expectedResult) {
 				t.Errorf("Expected URLs %+v, got %+v", test.expectedResult, urls)
@@ -115,23 +113,19 @@ func TestMemStore_Ping(t *testing.T) {
 }
 
 func TestMemStore_BatchAddURLs(t *testing.T) {
+	urlOne := NewURL("key1", "https://example1.com", "userID")
+	urlTwo := NewURL("key2", "https://example2.com", "userID")
+	data := []URL{*urlOne, *urlTwo}
+
 	tests := []struct {
 		name    string
-		batch   []BatchURLsElement
-		userID  string
-		results map[string]string
+		urls    []URL
+		results []URL
 	}{
 		{
-			name: "Valid batch",
-			batch: []BatchURLsElement{
-				{Slug: "key1", OriginalURL: "https://example1.com"},
-				{Slug: "key2", OriginalURL: "https://example2.com"},
-			},
-			userID: "userID",
-			results: map[string]string{
-				"key1": "https://example1.com",
-				"key2": "https://example2.com",
-			},
+			name:    "Valid batch",
+			urls:    data,
+			results: data,
 		},
 	}
 
@@ -139,16 +133,16 @@ func TestMemStore_BatchAddURLs(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			store := NewMemoryStorage()
 
-			if err := store.BatchAddURLs(test.batch, test.userID); err != nil {
-				t.Fatalf("Error in BatchAddURLs: %v", err)
+			if err := store.AddURLs(test.urls); err != nil {
+				t.Fatalf("Error in AddURLs: %v", err)
 			}
 
-			for _, element := range test.batch {
-				url, err := store.GetURL(element.Slug, test.userID)
+			for _, element := range test.urls {
+				url, err := store.GetURL(element.Slug)
 				if err != nil {
 					t.Fatalf("Error getting URL for slug %s: %v", element.Slug, err)
 				}
-				if url != element.OriginalURL {
+				if url.OriginalURL != element.OriginalURL {
 					t.Errorf("Expected URL %s for slug %s, got %s", element.OriginalURL, element.Slug, url)
 				}
 			}
@@ -157,18 +151,17 @@ func TestMemStore_BatchAddURLs(t *testing.T) {
 }
 
 func TestMemStore_GetSlugByOriginalURL(t *testing.T) {
+	urlOne := NewURL("key1", "https://example1.com", "userID")
+	urlTwo := NewURL("key2", "https://example2.com", "userID")
+	data := []URL{*urlOne, *urlTwo}
+
 	tests := []struct {
-		name   string
-		data   map[string]string
-		userID string
+		name string
+		urls []URL
 	}{
 		{
 			name: "Valid data",
-			data: map[string]string{
-				"key1": "https://example1.com",
-				"key2": "https://example2.com",
-			},
-			userID: "userID",
+			urls: data,
 		},
 	}
 
@@ -176,19 +169,17 @@ func TestMemStore_GetSlugByOriginalURL(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			store := NewMemoryStorage()
 
-			for slug, url := range test.data {
-				if err := store.AddURL(slug, url, test.userID); err != nil {
-					t.Fatalf("Error adding URL %s: %v", url, err)
-				}
+			if err := store.AddURLs(test.urls); err != nil {
+				t.Fatalf("Error in AddURLs: %v", err)
 			}
 
-			for _, url := range test.data {
-				slug, err := store.GetSlugByOriginalURL(url, test.userID)
+			for _, element := range test.urls {
+				url, err := store.GetURLByOriginalURL(element.OriginalURL)
 				if err != nil {
-					t.Fatalf("Error getting slug for URL %s: %v", url, err)
+					t.Fatalf("Error getting url %s: %v", element, err)
 				}
-				if _, ok := test.data[slug]; !ok {
-					t.Errorf("Expected slug for URL %s, got %s", url, slug)
+				if url.Slug != element.Slug {
+					t.Errorf("Expected slug for URL %s, got %s", element.Slug, url.Slug)
 				}
 			}
 		})
@@ -197,69 +188,68 @@ func TestMemStore_GetSlugByOriginalURL(t *testing.T) {
 
 func TestMemStore_AddURL_URLAlreadyExists(t *testing.T) {
 	store := NewMemoryStorage()
+	URL := NewURL("key", "https://example.com", "userID")
 
-	initialSlug := "key1"
-	initialURL := "https://example.com"
-	userID := "testUser"
-	err := store.AddURL(initialSlug, initialURL, userID)
+	err := store.AddURL(*URL)
 	if err != nil {
 		t.Fatalf("Error adding initial URL: %v", err)
 	}
 
-	err = store.AddURL("key2", initialURL, userID)
-	if err != ErrorURLAlreadyExists {
-		t.Errorf("Expected ErrorURLAlreadyExists, got: %v", err)
+	duplicateURL := NewURL("key2", "https://example.com", "userID")
+	err = store.AddURL(*duplicateURL)
+	if !errors.Is(err, ErrURLAlreadyExists) {
+		t.Errorf("Expected %v, got: %v", ErrURLAlreadyExists, err)
 	}
 }
 
 func TestMemStore_GetSlugByOriginalURL_OriginalURLNotFound(t *testing.T) {
 	store := NewMemoryStorage()
 
-	_, err := store.GetSlugByOriginalURL("https://nonexistent.com", "userID")
-	if err != ErrorSlugUnknown {
-		t.Errorf("Expected ErrorSlugUnknown, got: %v", err)
+	_, err := store.GetURLByOriginalURL("https://nonexistent.com")
+	if !errors.Is(err, ErrURLNotFound) {
+		t.Errorf("Expected %v, got: %v", ErrURLNotFound, err)
 	}
 }
 
 func TestMemStore_GetURL_NonExistentSlug(t *testing.T) {
 	store := NewMemoryStorage()
 
-	_, err := store.GetURL("nonexistent", "userID")
-	if err != ErrorSlugUnknown {
-		t.Errorf("Expected ErrorSlugUnknown, got: %v", err)
+	_, err := store.GetURL("nonexistent")
+	if !errors.Is(err, ErrURLNotFound) {
+		t.Errorf("Expected %v, got: %v", ErrURLNotFound, err)
 	}
 }
 
 func TestMemStore_GetURLsByUser_NonExistentUser(t *testing.T) {
 	store := NewMemoryStorage()
 
-	urls := store.GetURLsByUser("nonexistent")
+	urls, err := store.GetURLsByUser("nonexistent")
+	if !errors.Is(err, ErrURLNotFound) {
+		t.Errorf("Expected ErrorNotFound, got: %v", err)
+	}
 	if len(urls) != 0 {
-		t.Errorf("Expected empty map, got: %v", urls)
+		t.Errorf("Expected zero len result, got: %d", len(urls))
 	}
 }
 
 func TestMemStore_AddURL_EmptySlug(t *testing.T) {
 	store := NewMemoryStorage()
+	url := NewURL("", "https://example.com", "userID")
+	err := store.AddURL(*url)
 
-	err := store.AddURL("", "https://example.com", "userID")
-	if err != ErrorSlugEmpty {
+	if !errors.Is(err, ErrURLEmptySlug) {
 		t.Errorf("Expected ErrorSlugEmpty, got: %v", err)
 	}
 }
 
 func TestMemStore_BatchAddURLs_EmptySlug(t *testing.T) {
 	store := NewMemoryStorage()
+	urlOne := NewURL("key1", "https://example1.com", "userID")
+	urlTwo := NewURL("", "https://example2.com", "userID")
+	urls := []URL{*urlOne, *urlTwo}
 
-	batch := []BatchURLsElement{
-		{Slug: "", OriginalURL: "https://example.com"},
-		{Slug: "key2", OriginalURL: "https://example2.com"},
-	}
-
-	userID := "userID"
-
-	err := store.BatchAddURLs(batch, userID)
-	if err != ErrorSlugEmpty {
-		t.Errorf("Expected ErrorSlugEmpty, got: %v", err)
+	err := store.AddURLs(urls)
+	if !errors.Is(err, ErrURLEmptySlug) {
+		t.Errorf("Expected %v, got %v", ErrURLEmptySlug, err)
 	}
 }

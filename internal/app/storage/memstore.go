@@ -1,86 +1,75 @@
 package storage
 
-import (
-	"log"
-)
-
 type MemoryStorage struct {
-	data map[string]map[string]string // map[userID]map[slug][originalURL]
+	store []URL
 }
 
 func NewMemoryStorage() *MemoryStorage {
 	return &MemoryStorage{
-		data: make(map[string]map[string]string),
+		store: []URL{},
 	}
 }
 
-func (m *MemoryStorage) AddURL(slug string, originalURL string, userID string) error {
-	if slug == "" {
-		return ErrorSlugEmpty
+func (ms *MemoryStorage) AddURL(URL URL) error {
+	if URL.Slug == "" {
+		return ErrURLEmptySlug
 	}
-	userURLs, ok := m.data[userID]
-
 	// check if the original URL already exists for any user
-	for _, userURLs := range m.data {
-		for _, url := range userURLs {
-			if url == originalURL {
-				return ErrorURLAlreadyExists
-			}
+	for _, entry := range ms.store {
+		if entry.OriginalURL == URL.OriginalURL {
+			return ErrURLAlreadyExists
 		}
 	}
 
-	if !ok {
-		userURLs = make(map[string]string)
-	}
-	userURLs[slug] = originalURL
-	m.data[userID] = userURLs
+	ms.store = append(ms.store, URL)
 	return nil
 }
 
-func (m *MemoryStorage) BatchAddURLs(urlsBatch []BatchURLsElement, userID string) error {
-	for _, element := range urlsBatch {
-		if err := m.AddURL(element.Slug, element.OriginalURL, userID); err != nil {
+func (ms *MemoryStorage) AddURLs(URLs []URL) error {
+	for _, URL := range URLs {
+		if err := ms.AddURL(URL); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (m *MemoryStorage) GetURL(slug string, userID string) (string, error) {
-	log.Printf("user %s requested slug %s", userID, slug)
-	slugURLpairs := make(map[string]string)
-	for _, innerMap := range m.data {
-		for key, value := range innerMap {
-			slugURLpairs[key] = value
+func (ms *MemoryStorage) GetURL(slug string) (URL, error) {
+	if slug == "" {
+		return URL{}, ErrURLEmptySlug
+	}
+	for _, URL := range ms.store {
+		if URL.Slug == slug {
+			return URL, nil
+		}
+	}
+	return URL{}, ErrURLNotFound
+}
+
+func (ms *MemoryStorage) GetURLsByUser(userID string) ([]URL, error) {
+	var userURLs []URL
+
+	for _, url := range ms.store {
+		if url.UserID == userID {
+			userURLs = append(userURLs, url)
 		}
 	}
 
-	originalURL, ok := slugURLpairs[slug]
-	if !ok {
-		return "", ErrorSlugUnknown
+	if len(userURLs) == 0 {
+		return nil, ErrURLNotFound
 	}
-	return originalURL, nil
+	return userURLs, nil
 }
 
-func (m *MemoryStorage) GetURLsByUser(userID string) map[string]string {
-	userURLs, ok := m.data[userID]
-	if !ok {
-		return make(map[string]string)
-	}
-	return userURLs
-}
-
-func (m *MemoryStorage) GetSlugByOriginalURL(originalURL string, userID string) (string, error) {
-	for _, userURLs := range m.data {
-		for slug, url := range userURLs {
-			if url == originalURL {
-				return slug, nil
-			}
+func (ms *MemoryStorage) GetURLByOriginalURL(originalURL string) (URL, error) {
+	for _, URL := range ms.store {
+		if URL.OriginalURL == originalURL {
+			return URL, nil
 		}
 	}
-	return "", ErrorSlugUnknown
+	return URL{}, ErrURLNotFound
 }
 
-func (m *MemoryStorage) Ping() error {
+func (ms *MemoryStorage) Ping() error {
 	return nil
 }
