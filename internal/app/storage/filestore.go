@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 )
@@ -61,19 +62,19 @@ func (fs *FileStorage) saveData() error {
 	return nil
 }
 
-func (fs *FileStorage) AddURL(URL URL) error {
-	if URL.Slug == "" {
+func (fs *FileStorage) AddURL(ctx context.Context, url URL) error {
+	if url.Slug == "" {
 		return ErrURLEmptySlug
 	}
 
 	// check if the original URL already exists for any user
 	for _, entry := range fs.store {
-		if entry.OriginalURL == URL.OriginalURL {
+		if entry.OriginalURL == url.OriginalURL {
 			return ErrURLAlreadyExists
 		}
 	}
 
-	fs.store = append(fs.store, URL)
+	fs.store = append(fs.store, url)
 
 	if err := fs.saveData(); err != nil {
 		return err
@@ -81,34 +82,34 @@ func (fs *FileStorage) AddURL(URL URL) error {
 	return nil
 }
 
-func (fs *FileStorage) AddURLs(URLs []URL) error {
-	for _, URL := range URLs {
-		if err := fs.AddURL(URL); err != nil {
+func (fs *FileStorage) AddURLs(ctx context.Context, urls []URL) error {
+	for _, url := range urls {
+		if err := fs.AddURL(ctx, url); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (fs *FileStorage) GetURL(slug string) (URL, error) {
+func (fs *FileStorage) GetURL(ctx context.Context, slug string) (URL, error) {
 	if slug == "" {
 		return URL{}, ErrURLEmptySlug
 	}
 
-	for _, URL := range fs.store {
-		if URL.Slug == slug {
-			return URL, nil
+	for _, url := range fs.store {
+		if url.Slug == slug {
+			return url, nil
 		}
 	}
 	return URL{}, ErrURLNotFound
 }
 
-func (fs *FileStorage) GetURLsByUser(userID string) ([]URL, error) {
+func (fs *FileStorage) GetURLsByUser(ctx context.Context, userID string) ([]URL, error) {
 	var userURLs []URL
 
-	for _, URL := range fs.store {
-		if URL.UserID == userID {
-			userURLs = append(userURLs, URL)
+	for _, url := range fs.store {
+		if url.UserID == userID {
+			userURLs = append(userURLs, url)
 		}
 	}
 
@@ -118,15 +119,15 @@ func (fs *FileStorage) GetURLsByUser(userID string) ([]URL, error) {
 	return userURLs, nil
 }
 
-func (fs *FileStorage) GetURLByOriginalURL(originalURL string) (URL, error) {
-	for _, URL := range fs.store {
-		if URL.OriginalURL == originalURL {
-			return URL, nil
+func (fs *FileStorage) GetURLByOriginalURL(ctx context.Context, originalURL string) (URL, error) {
+	for _, url := range fs.store {
+		if url.OriginalURL == originalURL {
+			return url, nil
 		}
 	}
 	return URL{}, ErrURLNotFound
 }
 
-func (fs *FileStorage) Ping() error {
+func (fs *FileStorage) Ping(ctx context.Context) error {
 	return nil
 }

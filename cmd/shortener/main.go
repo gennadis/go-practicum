@@ -13,7 +13,7 @@ import (
 func main() {
 	cfg := config.NewConfiguration()
 	ctx := context.Background()
-	strg, err := storage.NewStorage(ctx, cfg)
+	strg, err := storage.NewURLStorage(ctx, cfg)
 	if err != nil {
 		log.Printf("error creating new storage %v", err)
 	}

@@ -15,15 +15,15 @@ var (
 )
 
 type URLStorage interface {
-	AddURL(url URL) error
-	AddURLs(urls []URL) error
-	GetURL(slug string) (URL, error)
-	GetURLsByUser(userID string) ([]URL, error)
-	GetURLByOriginalURL(originalURL string) (URL, error)
-	Ping() error
+	AddURL(ctx context.Context, url URL) error
+	AddURLs(ctx context.Context, urls []URL) error
+	GetURL(ctx context.Context, slug string) (URL, error)
+	GetURLsByUser(ctx context.Context, userID string) ([]URL, error)
+	GetURLByOriginalURL(ctx context.Context, originalURL string) (URL, error)
+	Ping(ctx context.Context) error
 }
 
-func NewStorage(ctx context.Context, config config.Configuration) (URLStorage, error) {
+func NewURLStorage(ctx context.Context, config config.Configuration) (URLStorage, error) {
 	switch {
 	case config.DatabaseDSN != "":
 		log.Println("storage init: Database storage selected")
