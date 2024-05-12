@@ -12,7 +12,7 @@ func NewMemoryRepository() *MemoryRepository {
 	}
 }
 
-func (mr *MemoryRepository) AddURL(ctx context.Context, url URL) error {
+func (mr *MemoryRepository) Save(ctx context.Context, url URL) error {
 	// check if the original URL already exists for any user
 	for _, entry := range mr.urls {
 		if entry.OriginalURL == url.OriginalURL {
@@ -24,16 +24,16 @@ func (mr *MemoryRepository) AddURL(ctx context.Context, url URL) error {
 	return nil
 }
 
-func (mr *MemoryRepository) AddURLs(ctx context.Context, urls []URL) error {
+func (mr *MemoryRepository) SaveMany(ctx context.Context, urls []URL) error {
 	for _, url := range urls {
-		if err := mr.AddURL(ctx, url); err != nil {
+		if err := mr.Save(ctx, url); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (mr *MemoryRepository) GetURL(ctx context.Context, slug string) (URL, error) {
+func (mr *MemoryRepository) GetBySlug(ctx context.Context, slug string) (URL, error) {
 	for _, url := range mr.urls {
 		if url.Slug == slug {
 			return url, nil
@@ -42,7 +42,7 @@ func (mr *MemoryRepository) GetURL(ctx context.Context, slug string) (URL, error
 	return URL{}, ErrURLNotFound
 }
 
-func (mr *MemoryRepository) GetURLsByUser(ctx context.Context, userID string) ([]URL, error) {
+func (mr *MemoryRepository) GetByUser(ctx context.Context, userID string) ([]URL, error) {
 	var userURLs []URL
 
 	for _, url := range mr.urls {
@@ -57,7 +57,7 @@ func (mr *MemoryRepository) GetURLsByUser(ctx context.Context, userID string) ([
 	return userURLs, nil
 }
 
-func (mr *MemoryRepository) GetURLByOriginalURL(ctx context.Context, originalURL string) (URL, error) {
+func (mr *MemoryRepository) GetByOriginalURL(ctx context.Context, originalURL string) (URL, error) {
 	for _, url := range mr.urls {
 		if url.OriginalURL == originalURL {
 			return url, nil

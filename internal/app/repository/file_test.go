@@ -51,13 +51,13 @@ func TestFileStore_ReadWrite(t *testing.T) {
 				t.Fatalf("Error creating file store: %v", err)
 			}
 			url := NewURL(test.slug, test.originalURL, test.userID)
-			if err := store.AddURL(ctx, *url); err != nil {
+			if err := store.Save(ctx, *url); err != nil {
 				if err != test.expectedError {
 					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
 				}
 				return
 			}
-			createdURL, err := store.GetURL(ctx, test.slug)
+			createdURL, err := store.GetBySlug(ctx, test.slug)
 			if err != nil {
 				if err != test.expectedError {
 					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
@@ -90,7 +90,7 @@ func TestFileStore_AppendData(t *testing.T) {
 	urlOne := NewURL("key1", "https://example1.com", "userID")
 	urlTwo := NewURL("key2", "https://example2.com", "userID")
 	data := []URL{*urlOne, *urlTwo}
-	if err := store.AddURLs(ctx, data); err != nil {
+	if err := store.SaveMany(ctx, data); err != nil {
 		t.Fatalf("Error writing to store: %v", err)
 	}
 
@@ -129,11 +129,11 @@ func TestFileStore_GetUserURLs(t *testing.T) {
 	urlTwo := NewURL("key2", "https://example2.com", "userID")
 	data := []URL{*urlOne, *urlTwo}
 
-	if err := store.AddURLs(ctx, data); err != nil {
+	if err := store.SaveMany(ctx, data); err != nil {
 		t.Fatalf("Error writing to store: %v", err)
 	}
 
-	urls, err := store.GetURLsByUser(ctx, "userID")
+	urls, err := store.GetByUser(ctx, "userID")
 	if err != nil {
 		t.Fatalf("Error getting user urls: %v", err)
 	}
@@ -181,7 +181,7 @@ func TestFileStore_AppendDataSequentially(t *testing.T) {
 	urlTwo := NewURL("key2", "https://example2.com", "userID")
 	data := []URL{*urlOne, *urlTwo}
 
-	if err := store.AddURLs(ctx, data); err != nil {
+	if err := store.SaveMany(ctx, data); err != nil {
 		t.Fatalf("Error writing to store: %v", err)
 	}
 
@@ -203,7 +203,7 @@ func TestFileStore_AppendDataSequentially(t *testing.T) {
 	urlFour := NewURL("key4", "https://example4.com", "userID")
 	moreData := []URL{*urlThree, *urlFour}
 
-	if err := store.AddURLs(ctx, moreData); err != nil {
+	if err := store.SaveMany(ctx, moreData); err != nil {
 		t.Fatalf("Error writing to store: %v", err)
 	}
 
@@ -235,11 +235,11 @@ func TestFileStore_AddURL_ExistingURL(t *testing.T) {
 	}
 
 	url := NewURL("key1", "https://example1.com", "userID")
-	if err := store.AddURL(ctx, *url); err != nil {
+	if err := store.Save(ctx, *url); err != nil {
 		t.Fatalf("Error writing to store: %v", err)
 	}
 
-	if err := store.AddURL(ctx, *url); !errors.Is(err, ErrURLAlreadyExists) {
+	if err := store.Save(ctx, *url); !errors.Is(err, ErrURLAlreadyExists) {
 		t.Errorf("Expected %v, got: %v", ErrURLAlreadyExists, err)
 	}
 }
@@ -260,12 +260,12 @@ func TestFileStorage_GetURL_NonExistentSlug(t *testing.T) {
 	}
 
 	url := NewURL("key1", "https://example1.com", "userID")
-	if err := store.AddURL(ctx, *url); err != nil {
+	if err := store.Save(ctx, *url); err != nil {
 		t.Fatalf("Error adding URL: %v", err)
 	}
 
 	nonExistentSlug := "nonexistent"
-	_, err = store.GetURL(ctx, nonExistentSlug)
+	_, err = store.GetBySlug(ctx, nonExistentSlug)
 	if !errors.Is(err, ErrURLNotFound) {
 		t.Errorf("Expected %v, got: %v", ErrURLNotFound, err)
 	}
@@ -290,11 +290,11 @@ func TestFileStore_GetUserURLs_NonExistentUser(t *testing.T) {
 	urlTwo := NewURL("key2", "https://example2.com", "userID")
 	data := []URL{*urlOne, *urlTwo}
 
-	if err := store.AddURLs(ctx, data); err != nil {
+	if err := store.SaveMany(ctx, data); err != nil {
 		t.Fatalf("Error writing to store: %v", err)
 	}
 
-	urls, err := store.GetURLsByUser(ctx, "nonexistent")
+	urls, err := store.GetByUser(ctx, "nonexistent")
 	if len(urls) != 0 {
 		t.Errorf("Expected zero len res, got: %v", urls)
 	}
@@ -319,11 +319,11 @@ func TestFileStore_GetSlugByOriginalURL_OriginalURLNotFound(t *testing.T) {
 	}
 
 	url := NewURL("key1", "https://example1.com", "userID")
-	if err := store.AddURL(ctx, *url); err != nil {
+	if err := store.Save(ctx, *url); err != nil {
 		t.Fatalf("Error adding URL: %v", err)
 	}
 
-	_, err = store.GetURLByOriginalURL(ctx, "https://nonexistent.com")
+	_, err = store.GetByOriginalURL(ctx, "https://nonexistent.com")
 	if !errors.Is(err, ErrURLNotFound) {
 		t.Errorf("Expected %v, got: %v", ErrURLNotFound, err)
 	}

@@ -62,7 +62,7 @@ func (fr *FileRepository) saveData() error {
 	return nil
 }
 
-func (fr *FileRepository) AddURL(ctx context.Context, url URL) error {
+func (fr *FileRepository) Save(ctx context.Context, url URL) error {
 	// check if the original URL already exists for any user
 	for _, entry := range fr.urls {
 		if entry.OriginalURL == url.OriginalURL {
@@ -78,16 +78,16 @@ func (fr *FileRepository) AddURL(ctx context.Context, url URL) error {
 	return nil
 }
 
-func (fr *FileRepository) AddURLs(ctx context.Context, urls []URL) error {
+func (fr *FileRepository) SaveMany(ctx context.Context, urls []URL) error {
 	for _, url := range urls {
-		if err := fr.AddURL(ctx, url); err != nil {
+		if err := fr.Save(ctx, url); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (fr *FileRepository) GetURL(ctx context.Context, slug string) (URL, error) {
+func (fr *FileRepository) GetBySlug(ctx context.Context, slug string) (URL, error) {
 	for _, url := range fr.urls {
 		if url.Slug == slug {
 			return url, nil
@@ -96,7 +96,7 @@ func (fr *FileRepository) GetURL(ctx context.Context, slug string) (URL, error) 
 	return URL{}, ErrURLNotFound
 }
 
-func (fr *FileRepository) GetURLsByUser(ctx context.Context, userID string) ([]URL, error) {
+func (fr *FileRepository) GetByUser(ctx context.Context, userID string) ([]URL, error) {
 	var userURLs []URL
 
 	for _, url := range fr.urls {
@@ -111,7 +111,7 @@ func (fr *FileRepository) GetURLsByUser(ctx context.Context, userID string) ([]U
 	return userURLs, nil
 }
 
-func (fr *FileRepository) GetURLByOriginalURL(ctx context.Context, originalURL string) (URL, error) {
+func (fr *FileRepository) GetByOriginalURL(ctx context.Context, originalURL string) (URL, error) {
 	for _, url := range fr.urls {
 		if url.OriginalURL == originalURL {
 			return url, nil

@@ -126,9 +126,9 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 	url := repository.NewURL(slug, string(originalURL), userID)
 	log.Printf("original url %s, shortened url: %s", originalURL, url)
 
-	if err := rh.repository.AddURL(r.Context(), *url); err != nil {
+	if err := rh.repository.Save(r.Context(), *url); err != nil {
 		if errors.Is(err, repository.ErrURLAlreadyExists) {
-			existingURL, err := rh.repository.GetURLByOriginalURL(r.Context(), string(originalURL))
+			existingURL, err := rh.repository.GetByOriginalURL(r.Context(), string(originalURL))
 			if err != nil {
 				log.Printf("error reading existing slug for %s: %s", originalURL, err)
 				http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -172,9 +172,9 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 	url := repository.NewURL(slug, shortenReq.OriginalURL, userID)
 	log.Printf("original url %s, shortened url: %s", shortenReq.OriginalURL, url)
 
-	if err := rh.repository.AddURL(r.Context(), *url); err != nil {
+	if err := rh.repository.Save(r.Context(), *url); err != nil {
 		if errors.Is(err, repository.ErrURLAlreadyExists) {
-			existingURL, err := rh.repository.GetURLByOriginalURL(r.Context(), string(shortenReq.OriginalURL))
+			existingURL, err := rh.repository.GetByOriginalURL(r.Context(), string(shortenReq.OriginalURL))
 			if err != nil {
 				log.Printf("error reading existing slug for %s: %s", shortenReq.OriginalURL, err)
 				http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -203,7 +203,7 @@ func (rh *RequestHandler) HandleExpandURL(w http.ResponseWriter, r *http.Request
 	slug := r.URL.Path[1:]
 	log.Printf("originalURL for slug %s requested", slug)
 
-	url, err := rh.repository.GetURL(r.Context(), slug)
+	url, err := rh.repository.GetBySlug(r.Context(), slug)
 	if err != nil {
 		log.Printf("error retrieving original URL: %v", err)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
@@ -227,7 +227,7 @@ func (rh *RequestHandler) HandleGetUserURLs(w http.ResponseWriter, r *http.Reque
 	}
 	log.Printf("urls for user %s requested", userID)
 
-	urls, err := rh.repository.GetURLsByUser(r.Context(), userID)
+	urls, err := rh.repository.GetByUser(r.Context(), userID)
 	if errors.Is(err, repository.ErrURLNotFound) {
 		log.Printf("no urls for user %s found", userID)
 		w.WriteHeader(http.StatusNoContent)
@@ -289,7 +289,7 @@ func (rh *RequestHandler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *ht
 		batchShortenResp = append(batchShortenResp, BatchShortenURLResponse{CorrelationID: el.CorrelationID, ShortURL: url})
 	}
 
-	err = rh.repository.AddURLs(r.Context(), batchURLs)
+	err = rh.repository.SaveMany(r.Context(), batchURLs)
 	if err != nil {
 		log.Println("error batch adding urls:", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

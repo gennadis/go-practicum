@@ -12,11 +12,11 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-type SQLRepository struct {
+type PostgresRepository struct {
 	db *sql.DB
 }
 
-func NewSQLRepository(ctx context.Context, postgresDSN string) (*SQLRepository, error) {
+func NewPostgresRepository(ctx context.Context, postgresDSN string) (*PostgresRepository, error) {
 	createTableQuery := `
 	CREATE TABLE IF NOT EXISTS url (
 		id SERIAL PRIMARY KEY,
@@ -41,10 +41,10 @@ func NewSQLRepository(ctx context.Context, postgresDSN string) (*SQLRepository, 
 	if _, err := db.ExecContext(ctx, createIndexQuery); err != nil {
 		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
-	return &SQLRepository{db: db}, nil
+	return &PostgresRepository{db: db}, nil
 }
 
-func (sr *SQLRepository) AddURL(ctx context.Context, url URL) error {
+func (sr *PostgresRepository) Save(ctx context.Context, url URL) error {
 	addURLQuery := `
 	INSERT INTO url
 	(slug, original_url, user_uuid)
@@ -63,7 +63,7 @@ func (sr *SQLRepository) AddURL(ctx context.Context, url URL) error {
 	return nil
 }
 
-func (sr *SQLRepository) AddURLs(ctx context.Context, urls []URL) error {
+func (sr *PostgresRepository) SaveMany(ctx context.Context, urls []URL) error {
 	addURLsQuery := `
 	INSERT INTO url
 	(slug, original_url, user_uuid)
@@ -96,7 +96,7 @@ func (sr *SQLRepository) AddURLs(ctx context.Context, urls []URL) error {
 	return tx.Commit()
 }
 
-func (sr *SQLRepository) GetURL(ctx context.Context, slug string) (URL, error) {
+func (sr *PostgresRepository) GetBySlug(ctx context.Context, slug string) (URL, error) {
 	getURLquery := `
 	SELECT slug, original_url, user_uuid
 	FROM url
@@ -111,7 +111,7 @@ func (sr *SQLRepository) GetURL(ctx context.Context, slug string) (URL, error) {
 	return url, nil
 }
 
-func (sr *SQLRepository) GetURLsByUser(ctx context.Context, userID string) ([]URL, error) {
+func (sr *PostgresRepository) GetByUser(ctx context.Context, userID string) ([]URL, error) {
 	getURLsByUserQuery := `
 	SELECT slug, original_url
 	FROM url
@@ -143,7 +143,7 @@ func (sr *SQLRepository) GetURLsByUser(ctx context.Context, userID string) ([]UR
 	return urls, nil
 }
 
-func (sr *SQLRepository) GetURLByOriginalURL(ctx context.Context, originalURL string) (URL, error) {
+func (sr *PostgresRepository) GetByOriginalURL(ctx context.Context, originalURL string) (URL, error) {
 	getURLByOriginalURLQuery := `
 	SELECT slug, user_uuid
 	FROM url
@@ -160,6 +160,6 @@ func (sr *SQLRepository) GetURLByOriginalURL(ctx context.Context, originalURL st
 	return *url, nil
 }
 
-func (sr *SQLRepository) Ping(ctx context.Context) error {
+func (sr *PostgresRepository) Ping(ctx context.Context) error {
 	return sr.db.PingContext(ctx)
 }

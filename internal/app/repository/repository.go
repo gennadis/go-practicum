@@ -15,11 +15,11 @@ var (
 )
 
 type Repository interface {
-	AddURL(ctx context.Context, url URL) error
-	AddURLs(ctx context.Context, urls []URL) error
-	GetURL(ctx context.Context, slug string) (URL, error)
-	GetURLsByUser(ctx context.Context, userID string) ([]URL, error)
-	GetURLByOriginalURL(ctx context.Context, originalURL string) (URL, error)
+	Save(ctx context.Context, url URL) error
+	SaveMany(ctx context.Context, urls []URL) error
+	GetBySlug(ctx context.Context, slug string) (URL, error)
+	GetByUser(ctx context.Context, userID string) ([]URL, error)
+	GetByOriginalURL(ctx context.Context, originalURL string) (URL, error)
 	Ping(ctx context.Context) error
 }
 
@@ -27,7 +27,7 @@ func NewRepository(ctx context.Context, config config.Configuration) (Repository
 	switch {
 	case config.DatabaseDSN != "":
 		log.Println("storage init: Database storage selected")
-		return NewSQLRepository(ctx, config.DatabaseDSN)
+		return NewPostgresRepository(ctx, config.DatabaseDSN)
 	case config.FileStoragePath != "":
 		log.Println("storage init: File storage selected")
 		return NewFileRepository(config.FileStoragePath)
