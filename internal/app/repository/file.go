@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"sync"
 )
 
 type FileRepository struct {
 	filename string
 	urls     []URL
+	mu       sync.RWMutex
 }
 
 func NewFileRepository(filename string) (*FileRepository, error) {
@@ -63,6 +65,9 @@ func (fr *FileRepository) saveData() error {
 }
 
 func (fr *FileRepository) Save(ctx context.Context, url URL) error {
+	fr.mu.Lock()
+	defer fr.mu.Unlock()
+
 	// check if the original URL already exists for any user
 	for _, entry := range fr.urls {
 		if entry.OriginalURL == url.OriginalURL {
@@ -71,7 +76,6 @@ func (fr *FileRepository) Save(ctx context.Context, url URL) error {
 	}
 
 	fr.urls = append(fr.urls, url)
-
 	if err := fr.saveData(); err != nil {
 		return err
 	}
@@ -88,6 +92,9 @@ func (fr *FileRepository) SaveMany(ctx context.Context, urls []URL) error {
 }
 
 func (fr *FileRepository) GetBySlug(ctx context.Context, slug string) (URL, error) {
+	fr.mu.RLock()
+	defer fr.mu.RUnlock()
+
 	for _, url := range fr.urls {
 		if url.Slug == slug {
 			return url, nil
@@ -97,8 +104,10 @@ func (fr *FileRepository) GetBySlug(ctx context.Context, slug string) (URL, erro
 }
 
 func (fr *FileRepository) GetByUser(ctx context.Context, userID string) ([]URL, error) {
-	var userURLs []URL
+	fr.mu.RLock()
+	defer fr.mu.RUnlock()
 
+	var userURLs []URL
 	for _, url := range fr.urls {
 		if url.UserID == userID {
 			userURLs = append(userURLs, url)
@@ -112,6 +121,9 @@ func (fr *FileRepository) GetByUser(ctx context.Context, userID string) ([]URL, 
 }
 
 func (fr *FileRepository) GetByOriginalURL(ctx context.Context, originalURL string) (URL, error) {
+	fr.mu.RLock()
+	defer fr.mu.RUnlock()
+
 	for _, url := range fr.urls {
 		if url.OriginalURL == originalURL {
 			return url, nil

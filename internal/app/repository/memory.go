@@ -1,9 +1,13 @@
 package repository
 
-import "context"
+import (
+	"context"
+	"sync"
+)
 
 type MemoryRepository struct {
 	urls []URL
+	mu   sync.RWMutex
 }
 
 func NewMemoryRepository() *MemoryRepository {
@@ -13,6 +17,9 @@ func NewMemoryRepository() *MemoryRepository {
 }
 
 func (mr *MemoryRepository) Save(ctx context.Context, url URL) error {
+	mr.mu.Lock()
+	defer mr.mu.Unlock()
+
 	// check if the original URL already exists for any user
 	for _, entry := range mr.urls {
 		if entry.OriginalURL == url.OriginalURL {
@@ -34,6 +41,9 @@ func (mr *MemoryRepository) SaveMany(ctx context.Context, urls []URL) error {
 }
 
 func (mr *MemoryRepository) GetBySlug(ctx context.Context, slug string) (URL, error) {
+	mr.mu.RLock()
+	defer mr.mu.RUnlock()
+
 	for _, url := range mr.urls {
 		if url.Slug == slug {
 			return url, nil
@@ -43,8 +53,10 @@ func (mr *MemoryRepository) GetBySlug(ctx context.Context, slug string) (URL, er
 }
 
 func (mr *MemoryRepository) GetByUser(ctx context.Context, userID string) ([]URL, error) {
-	var userURLs []URL
+	mr.mu.RLock()
+	defer mr.mu.RUnlock()
 
+	var userURLs []URL
 	for _, url := range mr.urls {
 		if url.UserID == userID {
 			userURLs = append(userURLs, url)
@@ -58,6 +70,9 @@ func (mr *MemoryRepository) GetByUser(ctx context.Context, userID string) ([]URL
 }
 
 func (mr *MemoryRepository) GetByOriginalURL(ctx context.Context, originalURL string) (URL, error) {
+	mr.mu.RLock()
+	defer mr.mu.RUnlock()
+
 	for _, url := range mr.urls {
 		if url.OriginalURL == originalURL {
 			return url, nil
