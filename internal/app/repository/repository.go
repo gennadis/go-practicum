@@ -9,14 +9,13 @@ import (
 )
 
 var (
-	ErrURLNotFound      = errors.New("URL not found")
-	ErrURLAlreadyExists = errors.New("URL already exists")
-	ErrURLEmptySlug     = errors.New("URL empty slug provided")
+	ErrURLNotExsit  = errors.New("URL does not exist")
+	ErrURLDuplicate = errors.New("URL already exists")
 )
 
 type Repository interface {
-	Save(ctx context.Context, url URL) error
-	SaveMany(ctx context.Context, urls []URL) error
+	Add(ctx context.Context, url URL) error
+	AddMany(ctx context.Context, urls []URL) error
 	GetBySlug(ctx context.Context, slug string) (URL, error)
 	GetByUser(ctx context.Context, userID string) ([]URL, error)
 	GetByOriginalURL(ctx context.Context, originalURL string) (URL, error)

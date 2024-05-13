@@ -175,7 +175,7 @@ func TestHandleExpandURL(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := repository.NewMemoryRepository()
 			url := repository.NewURL("testSlug", "https://example.com", userID)
-			if err := memStorage.Save(ctx, *url); err != nil {
+			if err := memStorage.Add(ctx, *url); err != nil {
 				t.Fatalf("memstore write error")
 			}
 			handler := NewRequestHandler(memStorage, baseURL)
@@ -263,7 +263,7 @@ func TestHandleGetUserURLs(t *testing.T) {
 			memStorage := repository.NewMemoryRepository()
 			if tc.userID == userID {
 				url := repository.NewURL("abc123", "https://example.com", userID)
-				if err := memStorage.Save(ctx, *url); err != nil {
+				if err := memStorage.Add(ctx, *url); err != nil {
 					t.Fatalf("memstore write error")
 				}
 			}
@@ -366,7 +366,7 @@ func TestHandleShortenURL_URLAlreadyExists(t *testing.T) {
 	existingSlug := "existingSlug"
 
 	url := repository.NewURL(existingSlug, existingURL, userID)
-	if err := memStorage.Save(ctx, *url); err != nil {
+	if err := memStorage.Add(ctx, *url); err != nil {
 		t.Fatalf("memstore write error")
 	}
 
@@ -391,7 +391,7 @@ func TestHandleJSONShortenURL_URLAlreadyExists(t *testing.T) {
 	existingSlug := "existingSlug"
 	url := repository.NewURL(existingSlug, existingURL, userID)
 
-	if err := memStorage.Save(ctx, *url); err != nil {
+	if err := memStorage.Add(ctx, *url); err != nil {
 		t.Fatalf("memstore write error")
 	}
 

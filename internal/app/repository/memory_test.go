@@ -30,7 +30,7 @@ func TestMemStore_ReadWrite(t *testing.T) {
 			slug:          "nonexistent",
 			userID:        "testUser",
 			expectedValue: "",
-			expectedError: ErrURLNotFound,
+			expectedError: ErrURLNotExsit,
 		},
 	}
 
@@ -39,7 +39,7 @@ func TestMemStore_ReadWrite(t *testing.T) {
 			store := NewMemoryRepository()
 
 			url := NewURL(test.slug, test.originalURL, test.userID)
-			if err := store.Save(ctx, *url); err != nil {
+			if err := store.Add(ctx, *url); err != nil {
 				if !errors.Is(err, test.expectedError) {
 					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
 				}
@@ -82,7 +82,7 @@ func TestMemStore_GetUserURLs(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			store := NewMemoryRepository()
 
-			if err := store.SaveMany(ctx, test.data); err != nil {
+			if err := store.AddMany(ctx, test.data); err != nil {
 				t.Fatalf("Error writing to store: %v", err)
 			}
 
@@ -132,7 +132,7 @@ func TestMemStore_BatchAddURLs(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			store := NewMemoryRepository()
 
-			if err := store.SaveMany(ctx, test.urls); err != nil {
+			if err := store.AddMany(ctx, test.urls); err != nil {
 				t.Fatalf("Error in AddURLs: %v", err)
 			}
 
@@ -170,7 +170,7 @@ func TestMemStore_GetSlugByOriginalURL(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			store := NewMemoryRepository()
 
-			if err := store.SaveMany(ctx, test.urls); err != nil {
+			if err := store.AddMany(ctx, test.urls); err != nil {
 				t.Fatalf("Error in AddURLs: %v", err)
 			}
 
@@ -192,15 +192,15 @@ func TestMemStore_AddURL_URLAlreadyExists(t *testing.T) {
 	URL := NewURL("key", "https://example.com", "userID")
 	ctx := context.Background()
 
-	err := store.Save(ctx, *URL)
+	err := store.Add(ctx, *URL)
 	if err != nil {
 		t.Fatalf("Error adding initial URL: %v", err)
 	}
 
 	duplicateURL := NewURL("key2", "https://example.com", "userID")
-	err = store.Save(ctx, *duplicateURL)
-	if !errors.Is(err, ErrURLAlreadyExists) {
-		t.Errorf("Expected %v, got: %v", ErrURLAlreadyExists, err)
+	err = store.Add(ctx, *duplicateURL)
+	if !errors.Is(err, ErrURLDuplicate) {
+		t.Errorf("Expected %v, got: %v", ErrURLDuplicate, err)
 	}
 }
 
@@ -209,8 +209,8 @@ func TestMemStore_GetSlugByOriginalURL_OriginalURLNotFound(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := store.GetByOriginalURL(ctx, "https://nonexistent.com")
-	if !errors.Is(err, ErrURLNotFound) {
-		t.Errorf("Expected %v, got: %v", ErrURLNotFound, err)
+	if !errors.Is(err, ErrURLNotExsit) {
+		t.Errorf("Expected %v, got: %v", ErrURLNotExsit, err)
 	}
 }
 
@@ -219,8 +219,8 @@ func TestMemStore_GetURL_NonExistentSlug(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := store.GetBySlug(ctx, "nonexistent")
-	if !errors.Is(err, ErrURLNotFound) {
-		t.Errorf("Expected %v, got: %v", ErrURLNotFound, err)
+	if !errors.Is(err, ErrURLNotExsit) {
+		t.Errorf("Expected %v, got: %v", ErrURLNotExsit, err)
 	}
 }
 
@@ -229,7 +229,7 @@ func TestMemStore_GetURLsByUser_NonExistentUser(t *testing.T) {
 	ctx := context.Background()
 
 	urls, err := store.GetByUser(ctx, "nonexistent")
-	if !errors.Is(err, ErrURLNotFound) {
+	if !errors.Is(err, ErrURLNotExsit) {
 		t.Errorf("Expected ErrorNotFound, got: %v", err)
 	}
 	if len(urls) != 0 {

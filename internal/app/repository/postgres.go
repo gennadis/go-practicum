@@ -44,7 +44,7 @@ func NewPostgresRepository(ctx context.Context, postgresDSN string) (*PostgresRe
 	return &PostgresRepository{db: db}, nil
 }
 
-func (sr *PostgresRepository) Save(ctx context.Context, url URL) error {
+func (sr *PostgresRepository) Add(ctx context.Context, url URL) error {
 	addURLQuery := `
 	INSERT INTO url
 	(slug, original_url, user_uuid)
@@ -56,14 +56,14 @@ func (sr *PostgresRepository) Save(ctx context.Context, url URL) error {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
 			log.Printf("unique originalURL violation for %s", url.OriginalURL)
-			return ErrURLAlreadyExists
+			return ErrURLDuplicate
 		}
 		return fmt.Errorf("failed to add URL: %w", err)
 	}
 	return nil
 }
 
-func (sr *PostgresRepository) SaveMany(ctx context.Context, urls []URL) error {
+func (sr *PostgresRepository) AddMany(ctx context.Context, urls []URL) error {
 	addURLsQuery := `
 	INSERT INTO url
 	(slug, original_url, user_uuid)
@@ -106,7 +106,7 @@ func (sr *PostgresRepository) GetBySlug(ctx context.Context, slug string) (URL, 
 	var url URL
 	err := sr.db.QueryRowContext(ctx, getURLquery, slug).Scan(&url.Slug, &url.OriginalURL, &url.UserID)
 	if err != nil {
-		return URL{}, ErrURLNotFound
+		return URL{}, ErrURLNotExsit
 	}
 	return url, nil
 }
@@ -122,7 +122,7 @@ func (sr *PostgresRepository) GetByUser(ctx context.Context, userID string) ([]U
 	rows, err := sr.db.QueryContext(ctx, getURLsByUserQuery, userID)
 	if err != nil {
 		log.Printf("Error querying user URLs: %v", err)
-		return urls, ErrURLNotFound
+		return urls, ErrURLNotExsit
 	}
 	defer rows.Close()
 
@@ -130,7 +130,7 @@ func (sr *PostgresRepository) GetByUser(ctx context.Context, userID string) ([]U
 		var slug, originalURL string
 		if err := rows.Scan(&slug, &originalURL); err != nil {
 			log.Printf("Error scanning row: %v", err)
-			return urls, ErrURLNotFound
+			return urls, ErrURLNotExsit
 		}
 		url := NewURL(slug, originalURL, userID)
 		urls = append(urls, *url)
@@ -138,7 +138,7 @@ func (sr *PostgresRepository) GetByUser(ctx context.Context, userID string) ([]U
 
 	if err := rows.Err(); err != nil {
 		log.Printf("Error iterating rows: %v", err)
-		return urls, ErrURLNotFound
+		return urls, ErrURLNotExsit
 	}
 	return urls, nil
 }
@@ -153,7 +153,7 @@ func (sr *PostgresRepository) GetByOriginalURL(ctx context.Context, originalURL 
 	var slug, userID string
 	err := sr.db.QueryRowContext(ctx, getURLByOriginalURLQuery, originalURL).Scan(&slug, &userID)
 	if err != nil {
-		return URL{}, ErrURLNotFound
+		return URL{}, ErrURLNotExsit
 	}
 
 	url := NewURL(slug, originalURL, userID)

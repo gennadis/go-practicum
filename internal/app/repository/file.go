@@ -64,14 +64,14 @@ func (fr *FileRepository) saveData() error {
 	return nil
 }
 
-func (fr *FileRepository) Save(ctx context.Context, url URL) error {
+func (fr *FileRepository) Add(ctx context.Context, url URL) error {
 	fr.mu.Lock()
 	defer fr.mu.Unlock()
 
 	// check if the original URL already exists for any user
 	for _, entry := range fr.urls {
 		if entry.OriginalURL == url.OriginalURL {
-			return ErrURLAlreadyExists
+			return ErrURLDuplicate
 		}
 	}
 
@@ -82,9 +82,9 @@ func (fr *FileRepository) Save(ctx context.Context, url URL) error {
 	return nil
 }
 
-func (fr *FileRepository) SaveMany(ctx context.Context, urls []URL) error {
+func (fr *FileRepository) AddMany(ctx context.Context, urls []URL) error {
 	for _, url := range urls {
-		if err := fr.Save(ctx, url); err != nil {
+		if err := fr.Add(ctx, url); err != nil {
 			return err
 		}
 	}
@@ -100,7 +100,7 @@ func (fr *FileRepository) GetBySlug(ctx context.Context, slug string) (URL, erro
 			return url, nil
 		}
 	}
-	return URL{}, ErrURLNotFound
+	return URL{}, ErrURLNotExsit
 }
 
 func (fr *FileRepository) GetByUser(ctx context.Context, userID string) ([]URL, error) {
@@ -115,7 +115,7 @@ func (fr *FileRepository) GetByUser(ctx context.Context, userID string) ([]URL, 
 	}
 
 	if len(userURLs) == 0 {
-		return nil, ErrURLNotFound
+		return nil, ErrURLNotExsit
 	}
 	return userURLs, nil
 }
@@ -129,7 +129,7 @@ func (fr *FileRepository) GetByOriginalURL(ctx context.Context, originalURL stri
 			return url, nil
 		}
 	}
-	return URL{}, ErrURLNotFound
+	return URL{}, ErrURLNotExsit
 }
 
 func (fr *FileRepository) Ping(ctx context.Context) error {

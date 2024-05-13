@@ -126,8 +126,8 @@ func (rh *RequestHandler) HandleShortenURL(w http.ResponseWriter, r *http.Reques
 	url := repository.NewURL(slug, string(originalURL), userID)
 	log.Printf("original url %s, shortened url: %s", originalURL, url)
 
-	if err := rh.repository.Save(r.Context(), *url); err != nil {
-		if errors.Is(err, repository.ErrURLAlreadyExists) {
+	if err := rh.repository.Add(r.Context(), *url); err != nil {
+		if errors.Is(err, repository.ErrURLDuplicate) {
 			existingURL, err := rh.repository.GetByOriginalURL(r.Context(), string(originalURL))
 			if err != nil {
 				log.Printf("error reading existing slug for %s: %s", originalURL, err)
@@ -172,8 +172,8 @@ func (rh *RequestHandler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Re
 	url := repository.NewURL(slug, shortenReq.OriginalURL, userID)
 	log.Printf("original url %s, shortened url: %s", shortenReq.OriginalURL, url)
 
-	if err := rh.repository.Save(r.Context(), *url); err != nil {
-		if errors.Is(err, repository.ErrURLAlreadyExists) {
+	if err := rh.repository.Add(r.Context(), *url); err != nil {
+		if errors.Is(err, repository.ErrURLDuplicate) {
 			existingURL, err := rh.repository.GetByOriginalURL(r.Context(), string(shortenReq.OriginalURL))
 			if err != nil {
 				log.Printf("error reading existing slug for %s: %s", shortenReq.OriginalURL, err)
@@ -228,7 +228,7 @@ func (rh *RequestHandler) HandleGetUserURLs(w http.ResponseWriter, r *http.Reque
 	log.Printf("urls for user %s requested", userID)
 
 	urls, err := rh.repository.GetByUser(r.Context(), userID)
-	if errors.Is(err, repository.ErrURLNotFound) {
+	if errors.Is(err, repository.ErrURLNotExsit) {
 		log.Printf("no urls for user %s found", userID)
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -289,7 +289,7 @@ func (rh *RequestHandler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *ht
 		batchShortenResp = append(batchShortenResp, BatchShortenURLResponse{CorrelationID: el.CorrelationID, ShortURL: url})
 	}
 
-	err = rh.repository.SaveMany(r.Context(), batchURLs)
+	err = rh.repository.AddMany(r.Context(), batchURLs)
 	if err != nil {
 		log.Println("error batch adding urls:", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
