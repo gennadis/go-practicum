@@ -12,9 +12,11 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-
-	"github.com/gennadis/shorturl/internal/app/handlers"
 )
+
+type contextKey string
+
+const UserIDContextKey contextKey = "userID"
 
 const (
 	cookieName = "authCookie"
@@ -70,7 +72,7 @@ func CookieAuthMiddleware(next http.Handler) http.Handler {
 			http.SetCookie(w, &newCookie)
 			log.Println("new cookie is set")
 
-			ctx := context.WithValue(r.Context(), handlers.UserIDContextKey, userID)
+			ctx := context.WithValue(r.Context(), UserIDContextKey, userID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
@@ -83,7 +85,7 @@ func CookieAuthMiddleware(next http.Handler) http.Handler {
 		}
 		log.Printf("cookie validation successful for user: %s", string(cookieValue))
 
-		ctx := context.WithValue(r.Context(), handlers.UserIDContextKey, string(cookieValue))
+		ctx := context.WithValue(r.Context(), UserIDContextKey, string(cookieValue))
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

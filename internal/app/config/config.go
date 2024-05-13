@@ -12,15 +12,15 @@ const (
 	defaultDatabaseDSN     = ""
 )
 
-type Configuration struct {
+type Config struct {
 	ServerAddress   string
 	BaseURL         string
 	FileStoragePath string
 	DatabaseDSN     string
 }
 
-func NewConfiguration() Configuration {
-	config := Configuration{
+func NewConfiguration() Config {
+	config := Config{
 		ServerAddress:   os.Getenv("SERVER_ADDRESS"),
 		BaseURL:         os.Getenv("BASE_URL"),
 		FileStoragePath: os.Getenv("FILE_STORAGE_PATH"),
