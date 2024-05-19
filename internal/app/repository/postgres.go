@@ -167,27 +167,35 @@ func (sr *PostgresRepository) Ping(ctx context.Context) error {
 	return sr.db.PingContext(ctx)
 }
 
-func (sr *PostgresRepository) DeleteBySlug(ctx context.Context, slug string) error {
-	deleteURLquery := `
+func (sr *PostgresRepository) DeleteMany(ctx context.Context, slugs []string) error {
+	deleteURLsQuery := `
 	UPDATE url
 	SET is_deleted = True
 	WHERE slug = $1;
 	`
-	//TODO: mark slugs as deleted in batch
-	//TODO: mark slugs as deleted in background
-	res, err := sr.db.ExecContext(ctx, deleteURLquery, slug)
-	if err != nil {
-		return ErrURLDeletion
-	}
-	rowsAffected, err := res.RowsAffected()
-	if err != nil {
-		log.Printf("error retrieving rows affected for slug %s: %v", slug, err)
-		return ErrURLDeletion
-	}
-	if rowsAffected == 0 {
-		log.Printf("no rows affected, slug %s not found", slug)
-		return ErrURLNotExsit
 
+	tx, err := sr.db.Begin()
+	if err != nil {
+		return err
 	}
-	return nil
+	defer func() {
+		if err != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				log.Printf("rollback error: %v", rbErr)
+			}
+		}
+	}()
+
+	stmt, err := tx.PrepareContext(ctx, deleteURLsQuery)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, slug := range slugs {
+		if _, err = stmt.ExecContext(ctx, slug); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }

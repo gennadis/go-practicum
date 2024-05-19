@@ -330,31 +330,34 @@ func (h *Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var slugs []string
 	defer r.Body.Close()
-	var slugsToDelete []string
-	if err := json.NewDecoder(r.Body).Decode(&slugsToDelete); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&slugs); err != nil {
 		log.Println("error unmarshaling request data:", err)
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-	log.Printf("user %s requested deletion of slugs: %s", userID, slugsToDelete)
+	log.Printf("user %s requested deletion of slugs: %s", userID, slugs)
 
-	//TODO: mark slugs as deleted in batch
+	if len(slugs) == 0 {
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+
 	//TODO: mark slugs as deleted in background
-	for _, s := range slugsToDelete {
-		if err := h.repo.DeleteBySlug(r.Context(), s); err != nil {
-			if errors.Is(err, repository.ErrURLNotExsit) {
-				log.Println("error marking url as deleted:", err)
-				http.Error(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
-				return
-			}
-			if errors.Is(err, repository.ErrURLDeletion) {
-				log.Println("error marking url as deleted:", err)
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-				return
-			}
+	if err := h.repo.DeleteMany(r.Context(), slugs); err != nil {
+		if errors.Is(err, repository.ErrURLNotExsit) {
+			log.Println("error marking url as deleted:", err)
+			http.Error(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
+			return
 		}
+		if errors.Is(err, repository.ErrURLDeletion) {
+			log.Println("error marking url as deleted:", err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
 	}
 	w.WriteHeader(http.StatusAccepted)
-	log.Printf("slugs %s deletion for user %s successful", slugsToDelete, userID)
+	log.Printf("slugs %s deletion for user %s successful", slugs, userID)
 }

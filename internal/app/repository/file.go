@@ -132,17 +132,18 @@ func (fr *FileRepository) GetByOriginalURL(ctx context.Context, originalURL stri
 	return URL{}, ErrURLNotExsit
 }
 
-func (fr *FileRepository) DeleteBySlug(ctx context.Context, slug string) error {
+func (fr *FileRepository) DeleteMany(ctx context.Context, slugs []string) error {
 	fr.mu.RLock()
 	defer fr.mu.RUnlock()
 
-	for _, url := range fr.urls {
-		if url.Slug == slug {
-			url.IsDeleted = true
-			return nil
+	for _, slug := range slugs {
+		for _, url := range fr.urls {
+			if url.Slug == slug {
+				url.IsDeleted = true
+			}
 		}
 	}
-	return ErrURLNotExsit
+	return nil
 }
 
 func (fr *FileRepository) Ping(ctx context.Context) error {

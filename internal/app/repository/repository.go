@@ -36,7 +36,7 @@ type Repository interface {
 	GetBySlug(ctx context.Context, slug string) (URL, error)
 	GetByUser(ctx context.Context, userID string) ([]URL, error)
 	GetByOriginalURL(ctx context.Context, originalURL string) (URL, error)
-	DeleteBySlug(ctx context.Context, slug string) error
+	DeleteMany(ctx context.Context, slugs []string) error
 	Ping(ctx context.Context) error
 }
 
