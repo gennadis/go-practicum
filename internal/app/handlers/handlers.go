@@ -140,8 +140,8 @@ func (h *Handler) HandleShortenURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slug := generateSlug()
-	url := repository.NewURL(slug, string(originalURL), userID)
-	log.Printf("original url %s, shortened url: %s", originalURL, url)
+	url := repository.NewURL(slug, string(originalURL), userID, false)
+	log.Printf("original url %s, shortened url: %s", originalURL, h.baseURL+"/"+url.Slug)
 
 	if err := h.repo.Add(r.Context(), *url); err != nil {
 		if errors.Is(err, repository.ErrURLDuplicate) {
@@ -186,8 +186,8 @@ func (h *Handler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slug := generateSlug()
-	url := repository.NewURL(slug, shortenReq.OriginalURL, userID)
-	log.Printf("original url %s, shortened url: %s", shortenReq.OriginalURL, url)
+	url := repository.NewURL(slug, shortenReq.OriginalURL, userID, false)
+	log.Printf("original url %s, shortened url: %s", shortenReq.OriginalURL, h.baseURL+"/"+url.Slug)
 
 	if err := h.repo.Add(r.Context(), *url); err != nil {
 		if errors.Is(err, repository.ErrURLDuplicate) {
@@ -301,7 +301,7 @@ func (h *Handler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *http.Reque
 		slug := generateSlug()
 		url := h.baseURL + "/" + slug
 		log.Printf("original url %s, shortened url: %s", el.OriginalURL, url)
-		URL := repository.NewURL(slug, el.OriginalURL, userID)
+		URL := repository.NewURL(slug, el.OriginalURL, userID, false)
 		batchURLs = append(batchURLs, *URL)
 		batchShortenResp = append(batchShortenResp, BatchShortenURLResponse{CorrelationID: el.CorrelationID, ShortURL: url})
 	}

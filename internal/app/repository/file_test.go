@@ -50,7 +50,7 @@ func TestFileStore_ReadWrite(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Error creating file store: %v", err)
 			}
-			url := NewURL(test.slug, test.originalURL, test.userID)
+			url := NewURL(test.slug, test.originalURL, test.userID, false)
 			if err := store.Add(ctx, *url); err != nil {
 				if err != test.expectedError {
 					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
@@ -66,7 +66,7 @@ func TestFileStore_ReadWrite(t *testing.T) {
 			}
 
 			if createdURL.OriginalURL != test.expectedValue {
-				t.Errorf("Expected value %s, got %s", test.expectedValue, createdURL)
+				t.Errorf("Expected value %s, got %s", test.expectedValue, createdURL.OriginalURL)
 			}
 		})
 	}
@@ -87,8 +87,8 @@ func TestFileStore_AppendData(t *testing.T) {
 		t.Fatalf("Error creating file store: %v", err)
 	}
 
-	urlOne := NewURL("key1", "https://example1.com", "userID")
-	urlTwo := NewURL("key2", "https://example2.com", "userID")
+	urlOne := NewURL("key1", "https://example1.com", "userID", false)
+	urlTwo := NewURL("key2", "https://example2.com", "userID", false)
 	data := []URL{*urlOne, *urlTwo}
 	if err := store.AddMany(ctx, data); err != nil {
 		t.Fatalf("Error writing to store: %v", err)
@@ -125,8 +125,8 @@ func TestFileStore_GetUserURLs(t *testing.T) {
 		t.Fatalf("Error creating file store: %v", err)
 	}
 
-	urlOne := NewURL("key1", "https://example1.com", "userID")
-	urlTwo := NewURL("key2", "https://example2.com", "userID")
+	urlOne := NewURL("key1", "https://example1.com", "userID", false)
+	urlTwo := NewURL("key2", "https://example2.com", "userID", false)
 	data := []URL{*urlOne, *urlTwo}
 
 	if err := store.AddMany(ctx, data); err != nil {
@@ -177,8 +177,8 @@ func TestFileStore_AppendDataSequentially(t *testing.T) {
 		t.Fatalf("Error creating file store: %v", err)
 	}
 
-	urlOne := NewURL("key1", "https://example1.com", "userID")
-	urlTwo := NewURL("key2", "https://example2.com", "userID")
+	urlOne := NewURL("key1", "https://example1.com", "userID", false)
+	urlTwo := NewURL("key2", "https://example2.com", "userID", false)
 	data := []URL{*urlOne, *urlTwo}
 
 	if err := store.AddMany(ctx, data); err != nil {
@@ -199,8 +199,8 @@ func TestFileStore_AppendDataSequentially(t *testing.T) {
 		t.Errorf("Expected data is full")
 	}
 
-	urlThree := NewURL("key3", "https://example3.com", "userID")
-	urlFour := NewURL("key4", "https://example4.com", "userID")
+	urlThree := NewURL("key3", "https://example3.com", "userID", false)
+	urlFour := NewURL("key4", "https://example4.com", "userID", false)
 	moreData := []URL{*urlThree, *urlFour}
 
 	if err := store.AddMany(ctx, moreData); err != nil {
@@ -234,7 +234,7 @@ func TestFileStore_AddURL_ExistingURL(t *testing.T) {
 		t.Fatalf("Error creating file store: %v", err)
 	}
 
-	url := NewURL("key1", "https://example1.com", "userID")
+	url := NewURL("key1", "https://example1.com", "userID", false)
 	if err := store.Add(ctx, *url); err != nil {
 		t.Fatalf("Error writing to store: %v", err)
 	}
@@ -259,7 +259,7 @@ func TestFileStorage_GetURL_NonExistentSlug(t *testing.T) {
 		t.Fatalf("Error creating file store: %v", err)
 	}
 
-	url := NewURL("key1", "https://example1.com", "userID")
+	url := NewURL("key1", "https://example1.com", "userID", false)
 	if err := store.Add(ctx, *url); err != nil {
 		t.Fatalf("Error adding URL: %v", err)
 	}
@@ -286,8 +286,8 @@ func TestFileStore_GetUserURLs_NonExistentUser(t *testing.T) {
 		t.Fatalf("Error creating file store: %v", err)
 	}
 
-	urlOne := NewURL("key1", "https://example1.com", "userID")
-	urlTwo := NewURL("key2", "https://example2.com", "userID")
+	urlOne := NewURL("key1", "https://example1.com", "userID", false)
+	urlTwo := NewURL("key2", "https://example2.com", "userID", false)
 	data := []URL{*urlOne, *urlTwo}
 
 	if err := store.AddMany(ctx, data); err != nil {
@@ -318,7 +318,7 @@ func TestFileStore_GetSlugByOriginalURL_OriginalURLNotFound(t *testing.T) {
 		t.Fatalf("Error creating file store: %v", err)
 	}
 
-	url := NewURL("key1", "https://example1.com", "userID")
+	url := NewURL("key1", "https://example1.com", "userID", false)
 	if err := store.Add(ctx, *url); err != nil {
 		t.Fatalf("Error adding URL: %v", err)
 	}

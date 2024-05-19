@@ -22,7 +22,8 @@ func NewPostgresRepository(ctx context.Context, postgresDSN string) (*PostgresRe
 		id SERIAL PRIMARY KEY,
 		slug VARCHAR(20) UNIQUE NOT NULL,
 		original_url VARCHAR(2048) NOT NULL,
-		user_uuid VARCHAR(36) NOT NULL
+		user_uuid VARCHAR(36) NOT NULL,
+		is_deleted BOOLEAN NOT NULL DEFAULT FALSE
 	);
 	`
 	createIndexQuery := `
@@ -47,11 +48,11 @@ func NewPostgresRepository(ctx context.Context, postgresDSN string) (*PostgresRe
 func (sr *PostgresRepository) Add(ctx context.Context, url URL) error {
 	addURLQuery := `
 	INSERT INTO url
-	(slug, original_url, user_uuid)
-	VALUES ($1, $2, $3);
+	(slug, original_url, user_uuid, is_deleted)
+	VALUES ($1, $2, $3, $4);
 	`
 
-	_, err := sr.db.ExecContext(ctx, addURLQuery, url.Slug, url.OriginalURL, url.UserID)
+	_, err := sr.db.ExecContext(ctx, addURLQuery, url.Slug, url.OriginalURL, url.UserID, url.IsDeleted)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
@@ -66,8 +67,8 @@ func (sr *PostgresRepository) Add(ctx context.Context, url URL) error {
 func (sr *PostgresRepository) AddMany(ctx context.Context, urls []URL) error {
 	addURLsQuery := `
 	INSERT INTO url
-	(slug, original_url, user_uuid)
-	VALUES ($1, $2, $3);
+	(slug, original_url, user_uuid, is_deleted)
+	VALUES ($1, $2, $3, $4);
 	`
 
 	tx, err := sr.db.Begin()
@@ -89,7 +90,7 @@ func (sr *PostgresRepository) AddMany(ctx context.Context, urls []URL) error {
 	defer stmt.Close()
 
 	for _, url := range urls {
-		if _, err = stmt.ExecContext(ctx, url.Slug, url.OriginalURL, url.UserID); err != nil {
+		if _, err = stmt.ExecContext(ctx, url.Slug, url.OriginalURL, url.UserID, url.IsDeleted); err != nil {
 			return err
 		}
 	}
@@ -98,13 +99,13 @@ func (sr *PostgresRepository) AddMany(ctx context.Context, urls []URL) error {
 
 func (sr *PostgresRepository) GetBySlug(ctx context.Context, slug string) (URL, error) {
 	getURLquery := `
-	SELECT slug, original_url, user_uuid
+	SELECT slug, original_url, user_uuid, is_deleted
 	FROM url
 	WHERE slug = $1;
 	`
 
 	var url URL
-	err := sr.db.QueryRowContext(ctx, getURLquery, slug).Scan(&url.Slug, &url.OriginalURL, &url.UserID)
+	err := sr.db.QueryRowContext(ctx, getURLquery, slug).Scan(&url.Slug, &url.OriginalURL, &url.UserID, &url.IsDeleted)
 	if err != nil {
 		return URL{}, ErrURLNotExsit
 	}
@@ -113,7 +114,7 @@ func (sr *PostgresRepository) GetBySlug(ctx context.Context, slug string) (URL, 
 
 func (sr *PostgresRepository) GetByUser(ctx context.Context, userID string) ([]URL, error) {
 	getURLsByUserQuery := `
-	SELECT slug, original_url
+	SELECT slug, original_url, is_deleted
 	FROM url
 	WHERE user_uuid = $1
 	`
@@ -128,11 +129,12 @@ func (sr *PostgresRepository) GetByUser(ctx context.Context, userID string) ([]U
 
 	for rows.Next() {
 		var slug, originalURL string
-		if err := rows.Scan(&slug, &originalURL); err != nil {
+		var isDeleted bool
+		if err := rows.Scan(&slug, &originalURL, &isDeleted); err != nil {
 			log.Printf("Error scanning row: %v", err)
 			return urls, ErrURLNotExsit
 		}
-		url := NewURL(slug, originalURL, userID)
+		url := NewURL(slug, originalURL, userID, isDeleted)
 		urls = append(urls, *url)
 	}
 
@@ -145,18 +147,19 @@ func (sr *PostgresRepository) GetByUser(ctx context.Context, userID string) ([]U
 
 func (sr *PostgresRepository) GetByOriginalURL(ctx context.Context, originalURL string) (URL, error) {
 	getURLByOriginalURLQuery := `
-	SELECT slug, user_uuid
+	SELECT slug, user_uuid, is_deleted
 	FROM url
 	WHERE original_url = $1;
 	`
 
 	var slug, userID string
-	err := sr.db.QueryRowContext(ctx, getURLByOriginalURLQuery, originalURL).Scan(&slug, &userID)
+	var isDeleted bool
+	err := sr.db.QueryRowContext(ctx, getURLByOriginalURLQuery, originalURL).Scan(&slug, &userID, &isDeleted)
 	if err != nil {
 		return URL{}, ErrURLNotExsit
 	}
 
-	url := NewURL(slug, originalURL, userID)
+	url := NewURL(slug, originalURL, userID, isDeleted)
 	return *url, nil
 }
 

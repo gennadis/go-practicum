@@ -17,13 +17,15 @@ type URL struct {
 	Slug        string `json:"slug"`
 	OriginalURL string `json:"originalURL"`
 	UserID      string `json:"userID"`
+	IsDeleted   bool   `json:"isDeleted"`
 }
 
-func NewURL(slug string, originalURL string, userID string) *URL {
+func NewURL(slug string, originalURL string, userID string, isDeleted bool) *URL {
 	return &URL{
 		Slug:        slug,
 		OriginalURL: originalURL,
 		UserID:      userID,
+		IsDeleted:   isDeleted,
 	}
 }
 
