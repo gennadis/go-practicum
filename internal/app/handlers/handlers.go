@@ -82,6 +82,8 @@ func NewHandler(repository repository.Repository, baseURL string) *Handler {
 	h.Router.Post("/api/shorten", h.HandleJSONShortenURL)
 	h.Router.Post("/api/shorten/batch", h.HandleBatchJSONShortenURL)
 
+	h.Router.Delete("/api/user/urls", h.HandleDeleteUserURLs)
+
 	h.Router.MethodNotAllowed(h.HandleMethodNotAllowed)
 
 	return &h
@@ -319,4 +321,40 @@ func (h *Handler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *http.Reque
 	}
 
 	h.respondWithJson(w, http.StatusCreated, batchShortenResp)
+}
+
+func (h *Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
+	userID, err := h.getUserIDFromCtx(r)
+	if errors.Is(err, ErrorMissingUserIDCtx) {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	defer r.Body.Close()
+	var slugsToDelete []string
+	if err := json.NewDecoder(r.Body).Decode(&slugsToDelete); err != nil {
+		log.Println("error unmarshaling request data:", err)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+	log.Printf("user %s requested deletion of slugs: %s", userID, slugsToDelete)
+
+	//TODO: mark slugs as deleted in batch
+	//TODO: mark slugs as deleted in background
+	for _, s := range slugsToDelete {
+		if err := h.repo.DeleteBySlug(r.Context(), s); err != nil {
+			if errors.Is(err, repository.ErrURLNotExsit) {
+				log.Println("error marking url as deleted:", err)
+				http.Error(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
+				return
+			}
+			if errors.Is(err, repository.ErrURLDeletion) {
+				log.Println("error marking url as deleted:", err)
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
+			}
+		}
+	}
+	w.WriteHeader(http.StatusAccepted)
+	log.Printf("slugs %s deletion for user %s successful", slugsToDelete, userID)
 }

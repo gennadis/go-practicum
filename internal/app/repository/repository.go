@@ -11,6 +11,7 @@ import (
 var (
 	ErrURLNotExsit  = errors.New("URL does not exist")
 	ErrURLDuplicate = errors.New("URL already exists")
+	ErrURLDeletion  = errors.New("URL deletion error")
 )
 
 type URL struct {
@@ -35,6 +36,7 @@ type Repository interface {
 	GetBySlug(ctx context.Context, slug string) (URL, error)
 	GetByUser(ctx context.Context, userID string) ([]URL, error)
 	GetByOriginalURL(ctx context.Context, originalURL string) (URL, error)
+	DeleteBySlug(ctx context.Context, slug string) error
 	Ping(ctx context.Context) error
 }
 
