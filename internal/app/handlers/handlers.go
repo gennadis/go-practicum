@@ -226,6 +226,11 @@ func (h *Handler) HandleExpandURL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
+	if url.IsDeleted {
+		log.Printf("url with slug %s marked as deleted", slug)
+		http.Error(w, http.StatusText(http.StatusGone), http.StatusGone)
+		return
+	}
 	log.Printf("originalURL for slug %s found: %s", slug, url.OriginalURL)
 
 	w.Header().Set("Location", url.OriginalURL)
