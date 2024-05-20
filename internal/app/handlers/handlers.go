@@ -28,9 +28,10 @@ var ErrorMissingUserIDCtx = errors.New("no userID in context")
 
 type (
 	Handler struct {
-		Router  *chi.Mux
-		repo    repository.Repository
-		baseURL string
+		Router            *chi.Mux
+		repo              repository.Repository
+		backgroundDeleter *repository.BackgroundDeleter
+		baseURL           string
 	}
 
 	ShortenURLRequest struct {
@@ -61,11 +62,12 @@ func generateSlug() string {
 	return string(b)
 }
 
-func NewHandler(repository repository.Repository, baseURL string) *Handler {
+func NewHandler(repository repository.Repository, backgroundDeleter *repository.BackgroundDeleter, baseURL string) *Handler {
 	h := Handler{
-		Router:  chi.NewRouter(),
-		repo:    repository,
-		baseURL: baseURL,
+		Router:            chi.NewRouter(),
+		repo:              repository,
+		backgroundDeleter: backgroundDeleter,
+		baseURL:           baseURL,
 	}
 
 	h.Router.Use(
@@ -344,20 +346,7 @@ func (h *Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//TODO: mark slugs as deleted in background
-	if err := h.repo.DeleteMany(r.Context(), slugs); err != nil {
-		if errors.Is(err, repository.ErrURLNotExsit) {
-			log.Println("error marking url as deleted:", err)
-			http.Error(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
-			return
-		}
-		if errors.Is(err, repository.ErrURLDeletion) {
-			log.Println("error marking url as deleted:", err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-
-	}
+	h.backgroundDeleter.EnqueueDeletion(slugs)
 	w.WriteHeader(http.StatusAccepted)
 	log.Printf("slugs %s deletion for user %s successful", slugs, userID)
 }
