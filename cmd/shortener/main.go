@@ -5,20 +5,24 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gennadis/shorturl/internal/app"
 	"github.com/gennadis/shorturl/internal/app/config"
-	"github.com/gennadis/shorturl/internal/app/server"
-	"github.com/gennadis/shorturl/internal/app/storage"
 )
 
 func main() {
-	cfg := config.NewConfiguration()
 	ctx := context.Background()
-	strg, err := storage.NewStorage(ctx, cfg)
+	cfg := config.NewConfiguration()
+	app, err := app.NewApp(ctx, cfg)
 	if err != nil {
-		log.Printf("error creating new storage %v", err)
+		log.Fatalf("error creating app: %v", err)
 	}
-	srv := server.NewServer(cfg, strg)
-	srv.MountHandlers()
 
-	log.Fatal(http.ListenAndServe(cfg.ServerAddress, srv.Router))
+	wg := app.BackgroundDeleter.Run(ctx)
+	go func() {
+		defer close(app.BackgroundDeleter.DeleteChan)
+		defer close(app.BackgroundDeleter.ErrorChan)
+		wg.Wait()
+	}()
+
+	log.Fatal(http.ListenAndServe(cfg.ServerAddress, app.Handler.Router))
 }

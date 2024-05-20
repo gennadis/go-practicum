@@ -9,7 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gennadis/shorturl/internal/app/storage"
+	"github.com/gennadis/shorturl/internal/app/deleter"
+	"github.com/gennadis/shorturl/internal/app/middlewares"
+	"github.com/gennadis/shorturl/internal/app/repository"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -55,15 +57,16 @@ func TestHandleShortenURL(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			memStorage := storage.NewMemoryStorage()
-			handler := NewRequestHandler(memStorage, baseURL)
+			memStorage := repository.NewMemoryRepository()
+			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
+			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
 
 			body := bytes.NewBufferString(tc.requestBody)
 			req, err := http.NewRequest("POST", "/", body)
 			assert.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
-			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+			ctx := context.WithValue(req.Context(), middlewares.UserIDContextKey, userID)
 			handler.HandleShortenURL(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
@@ -126,15 +129,16 @@ func TestHandleJSONShortenURL(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			memStorage := storage.NewMemoryStorage()
-			handler := NewRequestHandler(memStorage, baseURL)
+			memStorage := repository.NewMemoryRepository()
+			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
+			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
 
 			body := bytes.NewBufferString(tc.requestBody)
 			req, err := http.NewRequest("POST", "/api/shorten", body)
 			assert.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
-			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+			ctx := context.WithValue(req.Context(), middlewares.UserIDContextKey, userID)
 			handler.HandleJSONShortenURL(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
@@ -154,6 +158,7 @@ func TestHandleJSONShortenURL(t *testing.T) {
 }
 
 func TestHandleExpandURL(t *testing.T) {
+	ctx := context.Background()
 	tests := []struct {
 		name           string
 		slug           string
@@ -172,17 +177,19 @@ func TestHandleExpandURL(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			memStorage := storage.NewMemoryStorage()
-			if err := memStorage.AddURL("testSlug", "https://example.com", userID); err != nil {
+			memStorage := repository.NewMemoryRepository()
+			url := repository.NewURL("testSlug", "https://example.com", userID, false)
+			if err := memStorage.Add(ctx, *url); err != nil {
 				t.Fatalf("memstore write error")
 			}
-			handler := NewRequestHandler(memStorage, baseURL)
+			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
+			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
 
 			req, err := http.NewRequest("GET", "/"+tc.slug, nil)
 			assert.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
-			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+			ctx := context.WithValue(req.Context(), middlewares.UserIDContextKey, userID)
 			handler.HandleExpandURL(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
@@ -218,14 +225,15 @@ func TestDefaultHandler(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			memStorage := storage.NewMemoryStorage()
-			handler := NewRequestHandler(memStorage, baseURL)
+			memStorage := repository.NewMemoryRepository()
+			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
+			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
 
 			req, err := http.NewRequest(tc.method, "/", nil)
 			assert.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
-			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+			ctx := context.WithValue(req.Context(), middlewares.UserIDContextKey, userID)
 			handler.HandleMethodNotAllowed(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
@@ -236,6 +244,7 @@ func TestDefaultHandler(t *testing.T) {
 }
 
 func TestHandleGetUserURLs(t *testing.T) {
+	ctx := context.Background()
 	tests := []struct {
 		name           string
 		userID         string
@@ -257,19 +266,21 @@ func TestHandleGetUserURLs(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			memStorage := storage.NewMemoryStorage()
+			memStorage := repository.NewMemoryRepository()
 			if tc.userID == userID {
-				if err := memStorage.AddURL("abc123", "https://example.com", userID); err != nil {
+				url := repository.NewURL("abc123", "https://example.com", userID, false)
+				if err := memStorage.Add(ctx, *url); err != nil {
 					t.Fatalf("memstore write error")
 				}
 			}
-			handler := NewRequestHandler(memStorage, baseURL)
+			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
+			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
 
 			req, err := http.NewRequest("GET", "/api/user/urls", nil)
 			assert.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
-			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+			ctx := context.WithValue(req.Context(), middlewares.UserIDContextKey, userID)
 			handler.HandleGetUserURLs(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
@@ -283,24 +294,25 @@ func TestHandleGetUserURLs(t *testing.T) {
 func TestHandleDatabasePing(t *testing.T) {
 	tests := []struct {
 		name           string
-		storage        storage.Storage
+		storage        repository.Repository
 		expectedStatus int
 	}{
 		{
 			name:           "MemoryStoragePingSuccess",
-			storage:        storage.NewMemoryStorage(),
+			storage:        repository.NewMemoryRepository(),
 			expectedStatus: http.StatusOK,
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			handler := NewRequestHandler(tc.storage, baseURL)
+			backgroundDeleter := deleter.NewBackgroundDeleter(tc.storage)
+			handler := NewHandler(tc.storage, backgroundDeleter, baseURL)
 
 			req, err := http.NewRequest("GET", "/ping", nil)
 			assert.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
-			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+			ctx := context.WithValue(req.Context(), middlewares.UserIDContextKey, userID)
 			handler.HandleDatabasePing(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
@@ -336,19 +348,80 @@ func TestHandleBatchJSONShortenURL(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			memStorage := storage.NewMemoryStorage()
-			handler := NewRequestHandler(memStorage, baseURL)
+			memStorage := repository.NewMemoryRepository()
+			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
+			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
 
 			body := bytes.NewBufferString(tc.requestBody)
 			req, err := http.NewRequest("POST", "/api/batch-shorten", body)
 			assert.NoError(t, err)
 
 			recorder := httptest.NewRecorder()
-			ctx := context.WithValue(req.Context(), UserIDContextKey, userID)
+			ctx := context.WithValue(req.Context(), middlewares.UserIDContextKey, userID)
 			handler.HandleBatchJSONShortenURL(recorder, req.WithContext(ctx))
 
 			assert.Equal(t, tc.expectedStatus, recorder.Code)
 			assert.Equal(t, tc.expectedContentType, recorder.Header().Get("Content-Type"))
 		})
 	}
+}
+
+func TestHandleShortenURL_URLAlreadyExists(t *testing.T) {
+	memStorage := repository.NewMemoryRepository()
+	backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
+	handler := NewHandler(memStorage, backgroundDeleter, baseURL)
+	ctx := context.Background()
+
+	existingURL := "https://example.com"
+	existingSlug := "existingSlug"
+
+	url := repository.NewURL(existingSlug, existingURL, userID, false)
+	if err := memStorage.Add(ctx, *url); err != nil {
+		t.Fatalf("memstore write error")
+	}
+
+	req, err := http.NewRequest("POST", "/", strings.NewReader(existingURL))
+	assert.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	vCtx := context.WithValue(req.Context(), middlewares.UserIDContextKey, userID)
+	handler.HandleShortenURL(recorder, req.WithContext(vCtx))
+
+	assert.Equal(t, http.StatusConflict, recorder.Code)
+	assert.Equal(t, PlainTextContentType, recorder.Header().Get("Content-Type"))
+	assert.Contains(t, recorder.Body.String(), baseURL+"/"+existingSlug)
+}
+
+func TestHandleJSONShortenURL_URLAlreadyExists(t *testing.T) {
+	memStorage := repository.NewMemoryRepository()
+	backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
+	handler := NewHandler(memStorage, backgroundDeleter, baseURL)
+	ctx := context.Background()
+
+	existingURL := "https://example.com"
+	existingSlug := "existingSlug"
+	url := repository.NewURL(existingSlug, existingURL, userID, false)
+
+	if err := memStorage.Add(ctx, *url); err != nil {
+		t.Fatalf("memstore write error")
+	}
+
+	existingURLRequest := ShortenURLRequest{OriginalURL: existingURL}
+	requestBody, err := json.Marshal(existingURLRequest)
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest("POST", "/api/shorten", bytes.NewBuffer(requestBody))
+	assert.NoError(t, err)
+
+	recorder := httptest.NewRecorder()
+	vCtx := context.WithValue(req.Context(), middlewares.UserIDContextKey, userID)
+	handler.HandleJSONShortenURL(recorder, req.WithContext(vCtx))
+
+	assert.Equal(t, http.StatusConflict, recorder.Code)
+	assert.Equal(t, JSONContentType, recorder.Header().Get("Content-Type"))
+
+	var response ShortenURLResponse
+	err = json.Unmarshal(recorder.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.Equal(t, baseURL+"/"+existingSlug, response.Result)
 }
