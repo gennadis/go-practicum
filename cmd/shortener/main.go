@@ -17,9 +17,10 @@ func main() {
 		log.Fatalf("error creating app: %v", err)
 	}
 
-	wg := app.BackgroundDeleter.Subcribe(ctx)
+	wg := app.BackgroundDeleter.Run(ctx)
 	go func() {
 		defer close(app.BackgroundDeleter.DeleteChan)
+		defer close(app.BackgroundDeleter.ErrorChan)
 		wg.Wait()
 	}()
 

@@ -351,5 +351,5 @@ func (h *Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 		h.backgroundDeleter.DeleteChan <- repository.DeleteRequest{Slug: s, UserID: userID}
 	}
 	w.WriteHeader(http.StatusAccepted)
-	log.Printf("slugs %s deletion for user %s successful", slugs, userID)
+	log.Printf("slugs %s deletion request for user %s accepted", slugs, userID)
 }
