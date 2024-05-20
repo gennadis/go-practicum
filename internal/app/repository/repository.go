@@ -47,18 +47,14 @@ type Repository interface {
 
 func NewRepository(ctx context.Context, config config.Config) (Repository, error) {
 	switch {
-	default:
+	case config.DatabaseDSN != "":
 		log.Println("storage init: Database storage selected")
 		return NewPostgresRepository(ctx, config.DatabaseDSN)
+	case config.FileStoragePath != "":
+		log.Println("storage init: File storage selected")
+		return NewFileRepository(config.FileStoragePath)
+	default:
+		log.Println("storage init: Memory storage selected")
+		return NewMemoryRepository(), nil
 	}
-	// case config.DatabaseDSN != "":
-	// 	log.Println("storage init: Database storage selected")
-	// 	return NewPostgresRepository(ctx, config.DatabaseDSN)
-	// case config.FileStoragePath != "":
-	// 	log.Println("storage init: File storage selected")
-	// 	return NewFileRepository(config.FileStoragePath)
-	// default:
-	// 	log.Println("storage init: Memory storage selected")
-	// 	return NewMemoryRepository(), nil
-	// }
 }

@@ -136,13 +136,13 @@ func (fr *FileRepository) DeleteMany(ctx context.Context, deleteRequests []Delet
 	fr.mu.RLock()
 	defer fr.mu.RUnlock()
 
-	// for _, slug := range deleteRequests{
-	// 	for _, url := range fr.urls {
-	// 		if url.Slug == slug {
-	// 			url.IsDeleted = true
-	// 		}
-	// 	}
-	// }
+	for _, req := range deleteRequests {
+		for i, url := range fr.urls {
+			if url.Slug == req.Slug && url.UserID == req.UserID {
+				fr.urls[i].IsDeleted = true
+			}
+		}
+	}
 	return nil
 }
 

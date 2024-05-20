@@ -85,13 +85,14 @@ func (mr *MemoryRepository) DeleteMany(ctx context.Context, deleteRequests []Del
 	mr.mu.RLock()
 	defer mr.mu.RUnlock()
 
-	// for _, slug := range deleteRequests {
-	// 	for _, url := range mr.urls {
-	// 		if url.Slug == slug {
-	// 			url.IsDeleted = true
-	// 		}
-	// 	}
-	// }
+	for _, req := range deleteRequests {
+		for i, url := range mr.urls {
+			if url.Slug == req.Slug && url.UserID == req.UserID {
+				mr.urls[i].IsDeleted = true
+			}
+		}
+	}
+
 	return nil
 }
 

@@ -347,7 +347,9 @@ func (h *Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// h.backgroundDeleter.EnqueueDeletion(slugs)
+	for _, s := range slugs {
+		h.backgroundDeleter.DeleteChan <- repository.DeleteRequest{Slug: s, UserID: userID}
+	}
 	w.WriteHeader(http.StatusAccepted)
 	log.Printf("slugs %s deletion for user %s successful", slugs, userID)
 }

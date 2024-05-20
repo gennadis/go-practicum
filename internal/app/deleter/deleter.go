@@ -23,7 +23,7 @@ func NewBackgroundDeleter(repo repository.Repository) *BackgroundDeleter {
 	return bd
 }
 
-func (m *BackgroundDeleter) SubcribeOnTask(ctx context.Context) (*sync.WaitGroup, chan error) {
+func (m *BackgroundDeleter) Subcribe(ctx context.Context) (*sync.WaitGroup, chan error) {
 	ticker := time.NewTicker(time.Second * 5)
 	var deleteRequests []repository.DeleteRequest
 	var wg sync.WaitGroup
