@@ -17,15 +17,11 @@ func main() {
 		log.Fatalf("error creating app: %v", err)
 	}
 
-	wg, errChan := app.BackgroundDeleter.Subcribe(ctx)
+	wg := app.BackgroundDeleter.Subcribe(ctx)
 	go func() {
 		defer close(app.BackgroundDeleter.DeleteChan)
 		wg.Wait()
 	}()
-
-	if err := <-errChan; err != nil {
-		log.Printf("URL deletion error: %v", err)
-	}
 
 	log.Fatal(http.ListenAndServe(cfg.ServerAddress, app.Handler.Router))
 }

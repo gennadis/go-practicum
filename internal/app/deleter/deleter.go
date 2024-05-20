@@ -2,6 +2,7 @@ package deleter
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
@@ -23,12 +24,11 @@ func NewBackgroundDeleter(repo repository.Repository) *BackgroundDeleter {
 	return bd
 }
 
-func (m *BackgroundDeleter) Subcribe(ctx context.Context) (*sync.WaitGroup, chan error) {
+func (m *BackgroundDeleter) Subcribe(ctx context.Context) *sync.WaitGroup {
 	ticker := time.NewTicker(time.Second * 5)
 	var deleteRequests []repository.DeleteRequest
 	var wg sync.WaitGroup
 
-	errChan := make(chan error)
 	wg.Add(1)
 	go func() {
 		for {
@@ -40,7 +40,7 @@ func (m *BackgroundDeleter) Subcribe(ctx context.Context) (*sync.WaitGroup, chan
 				if len(deleteRequests) > 0 {
 					err := m.repo.DeleteMany(ctx, deleteRequests)
 					if err != nil {
-						errChan <- err
+						log.Printf("url deletion error: %v", err)
 						continue
 					}
 					deleteRequests = nil
@@ -50,14 +50,13 @@ func (m *BackgroundDeleter) Subcribe(ctx context.Context) (*sync.WaitGroup, chan
 				if len(deleteRequests) > 0 {
 					err := m.repo.DeleteMany(context.Background(), deleteRequests)
 					if err != nil {
-						errChan <- err
+						log.Printf("url deletion error: %v", err)
 					}
 				}
 				wg.Done()
-				close(errChan)
 				return
 			}
 		}
 	}()
-	return &wg, errChan
+	return &wg
 }
