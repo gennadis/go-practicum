@@ -167,11 +167,11 @@ func (sr *PostgresRepository) Ping(ctx context.Context) error {
 	return sr.db.PingContext(ctx)
 }
 
-func (sr *PostgresRepository) DeleteMany(ctx context.Context, slugs []string) error {
+func (sr *PostgresRepository) DeleteMany(ctx context.Context, deleteRequests []DeleteRequest) error {
 	deleteURLsQuery := `
 	UPDATE url
 	SET is_deleted = True
-	WHERE slug = $1;
+	WHERE slug = $1 AND user_uuid = $2;
 	`
 
 	tx, err := sr.db.Begin()
@@ -192,8 +192,8 @@ func (sr *PostgresRepository) DeleteMany(ctx context.Context, slugs []string) er
 	}
 	defer stmt.Close()
 
-	for _, slug := range slugs {
-		if _, err = stmt.ExecContext(ctx, slug); err != nil {
+	for _, dr := range deleteRequests {
+		if _, err = stmt.ExecContext(ctx, dr.Slug, dr.UserID); err != nil {
 			return err
 		}
 	}

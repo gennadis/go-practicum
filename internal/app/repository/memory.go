@@ -81,17 +81,17 @@ func (mr *MemoryRepository) GetByOriginalURL(ctx context.Context, originalURL st
 	return URL{}, ErrURLNotExsit
 }
 
-func (mr *MemoryRepository) DeleteMany(ctx context.Context, slugs []string) error {
+func (mr *MemoryRepository) DeleteMany(ctx context.Context, deleteRequests []DeleteRequest) error {
 	mr.mu.RLock()
 	defer mr.mu.RUnlock()
 
-	for _, slug := range slugs {
-		for _, url := range mr.urls {
-			if url.Slug == slug {
-				url.IsDeleted = true
-			}
-		}
-	}
+	// for _, slug := range deleteRequests {
+	// 	for _, url := range mr.urls {
+	// 		if url.Slug == slug {
+	// 			url.IsDeleted = true
+	// 		}
+	// 	}
+	// }
 	return nil
 }
 

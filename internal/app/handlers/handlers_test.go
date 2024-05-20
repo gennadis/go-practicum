@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gennadis/shorturl/internal/app/deleter"
 	"github.com/gennadis/shorturl/internal/app/middlewares"
 	"github.com/gennadis/shorturl/internal/app/repository"
 	"github.com/stretchr/testify/assert"
@@ -57,7 +58,7 @@ func TestHandleShortenURL(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := repository.NewMemoryRepository()
-			backgroundDeleter := repository.NewBackgroundDeleter(memStorage, 1)
+			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
 			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
 
 			body := bytes.NewBufferString(tc.requestBody)
@@ -129,7 +130,7 @@ func TestHandleJSONShortenURL(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := repository.NewMemoryRepository()
-			backgroundDeleter := repository.NewBackgroundDeleter(memStorage, 1)
+			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
 			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
 
 			body := bytes.NewBufferString(tc.requestBody)
@@ -181,7 +182,7 @@ func TestHandleExpandURL(t *testing.T) {
 			if err := memStorage.Add(ctx, *url); err != nil {
 				t.Fatalf("memstore write error")
 			}
-			backgroundDeleter := repository.NewBackgroundDeleter(memStorage, 1)
+			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
 			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
 
 			req, err := http.NewRequest("GET", "/"+tc.slug, nil)
@@ -225,7 +226,7 @@ func TestDefaultHandler(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := repository.NewMemoryRepository()
-			backgroundDeleter := repository.NewBackgroundDeleter(memStorage, 1)
+			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
 			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
 
 			req, err := http.NewRequest(tc.method, "/", nil)
@@ -272,7 +273,7 @@ func TestHandleGetUserURLs(t *testing.T) {
 					t.Fatalf("memstore write error")
 				}
 			}
-			backgroundDeleter := repository.NewBackgroundDeleter(memStorage, 1)
+			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
 			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
 
 			req, err := http.NewRequest("GET", "/api/user/urls", nil)
@@ -304,7 +305,7 @@ func TestHandleDatabasePing(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			backgroundDeleter := repository.NewBackgroundDeleter(tc.storage, 1)
+			backgroundDeleter := deleter.NewBackgroundDeleter(tc.storage)
 			handler := NewHandler(tc.storage, backgroundDeleter, baseURL)
 
 			req, err := http.NewRequest("GET", "/ping", nil)
@@ -348,7 +349,7 @@ func TestHandleBatchJSONShortenURL(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := repository.NewMemoryRepository()
-			backgroundDeleter := repository.NewBackgroundDeleter(memStorage, 1)
+			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
 			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
 
 			body := bytes.NewBufferString(tc.requestBody)
@@ -367,7 +368,7 @@ func TestHandleBatchJSONShortenURL(t *testing.T) {
 
 func TestHandleShortenURL_URLAlreadyExists(t *testing.T) {
 	memStorage := repository.NewMemoryRepository()
-	backgroundDeleter := repository.NewBackgroundDeleter(memStorage, 1)
+	backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
 	handler := NewHandler(memStorage, backgroundDeleter, baseURL)
 	ctx := context.Background()
 
@@ -393,7 +394,7 @@ func TestHandleShortenURL_URLAlreadyExists(t *testing.T) {
 
 func TestHandleJSONShortenURL_URLAlreadyExists(t *testing.T) {
 	memStorage := repository.NewMemoryRepository()
-	backgroundDeleter := repository.NewBackgroundDeleter(memStorage, 1)
+	backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
 	handler := NewHandler(memStorage, backgroundDeleter, baseURL)
 	ctx := context.Background()
 

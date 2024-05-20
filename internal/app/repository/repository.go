@@ -21,6 +21,11 @@ type URL struct {
 	IsDeleted   bool   `json:"isDeleted"`
 }
 
+type DeleteRequest struct {
+	Slug   string
+	UserID string
+}
+
 func NewURL(slug string, originalURL string, userID string, isDeleted bool) *URL {
 	return &URL{
 		Slug:        slug,
@@ -36,20 +41,24 @@ type Repository interface {
 	GetBySlug(ctx context.Context, slug string) (URL, error)
 	GetByUser(ctx context.Context, userID string) ([]URL, error)
 	GetByOriginalURL(ctx context.Context, originalURL string) (URL, error)
-	DeleteMany(ctx context.Context, slugs []string) error
+	DeleteMany(ctx context.Context, deleteRequests []DeleteRequest) error
 	Ping(ctx context.Context) error
 }
 
 func NewRepository(ctx context.Context, config config.Config) (Repository, error) {
 	switch {
-	case config.DatabaseDSN != "":
+	default:
 		log.Println("storage init: Database storage selected")
 		return NewPostgresRepository(ctx, config.DatabaseDSN)
-	case config.FileStoragePath != "":
-		log.Println("storage init: File storage selected")
-		return NewFileRepository(config.FileStoragePath)
-	default:
-		log.Println("storage init: Memory storage selected")
-		return NewMemoryRepository(), nil
 	}
+	// case config.DatabaseDSN != "":
+	// 	log.Println("storage init: Database storage selected")
+	// 	return NewPostgresRepository(ctx, config.DatabaseDSN)
+	// case config.FileStoragePath != "":
+	// 	log.Println("storage init: File storage selected")
+	// 	return NewFileRepository(config.FileStoragePath)
+	// default:
+	// 	log.Println("storage init: Memory storage selected")
+	// 	return NewMemoryRepository(), nil
+	// }
 }

@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 
+	"github.com/gennadis/shorturl/internal/app/deleter"
 	"github.com/gennadis/shorturl/internal/app/middlewares"
 	"github.com/gennadis/shorturl/internal/app/repository"
 	"github.com/go-chi/chi/v5"
@@ -30,7 +31,7 @@ type (
 	Handler struct {
 		Router            *chi.Mux
 		repo              repository.Repository
-		backgroundDeleter *repository.BackgroundDeleter
+		backgroundDeleter *deleter.BackgroundDeleter
 		baseURL           string
 	}
 
@@ -62,7 +63,7 @@ func generateSlug() string {
 	return string(b)
 }
 
-func NewHandler(repository repository.Repository, backgroundDeleter *repository.BackgroundDeleter, baseURL string) *Handler {
+func NewHandler(repository repository.Repository, backgroundDeleter *deleter.BackgroundDeleter, baseURL string) *Handler {
 	h := Handler{
 		Router:            chi.NewRouter(),
 		repo:              repository,
@@ -346,7 +347,7 @@ func (h *Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.backgroundDeleter.EnqueueDeletion(slugs)
+	// h.backgroundDeleter.EnqueueDeletion(slugs)
 	w.WriteHeader(http.StatusAccepted)
 	log.Printf("slugs %s deletion for user %s successful", slugs, userID)
 }

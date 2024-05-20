@@ -4,16 +4,15 @@ import (
 	"context"
 
 	"github.com/gennadis/shorturl/internal/app/config"
+	"github.com/gennadis/shorturl/internal/app/deleter"
 	"github.com/gennadis/shorturl/internal/app/handlers"
 	"github.com/gennadis/shorturl/internal/app/repository"
 )
 
-const backgroundDeleterWorkers = 5
-
 type App struct {
 	Repository        repository.Repository
 	Handler           *handlers.Handler
-	BackgroundDeleter *repository.BackgroundDeleter
+	BackgroundDeleter *deleter.BackgroundDeleter
 	context           context.Context
 }
 
@@ -23,7 +22,7 @@ func NewApp(ctx context.Context, cfg config.Config) (*App, error) {
 		return nil, err
 	}
 
-	backgroundDeleter := repository.NewBackgroundDeleter(repo, backgroundDeleterWorkers)
+	backgroundDeleter := deleter.NewBackgroundDeleter(repo)
 	h := handlers.NewHandler(repo, backgroundDeleter, cfg.BaseURL)
 
 	return &App{
