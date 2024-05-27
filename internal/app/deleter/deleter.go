@@ -39,13 +39,14 @@ func (m *BackgroundDeleter) handleDeletions(ctx context.Context, deleteRequests 
 
 func (m *BackgroundDeleter) Run(ctx context.Context) *sync.WaitGroup {
 	ticker := time.NewTicker(time.Second * 5)
-	deleteRequests := []repository.DeleteRequest{}
+	defer ticker.Stop()
+
+	deleteRequests := make([]repository.DeleteRequest, 0, deleteChanBufferSize)
 	wg := &sync.WaitGroup{}
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		defer ticker.Stop()
 
 		for {
 			select {
@@ -54,6 +55,7 @@ func (m *BackgroundDeleter) Run(ctx context.Context) *sync.WaitGroup {
 
 			case <-ticker.C:
 				m.handleDeletions(ctx, &deleteRequests)
+				deleteRequests = deleteRequests[:0]
 
 			case <-ctx.Done():
 				m.handleDeletions(context.Background(), &deleteRequests)

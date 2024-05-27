@@ -20,25 +20,32 @@ type Config struct {
 }
 
 func NewConfiguration() Config {
-	config := Config{
-		ServerAddress:   os.Getenv("SERVER_ADDRESS"),
-		BaseURL:         os.Getenv("BASE_URL"),
-		FileStoragePath: os.Getenv("FILE_STORAGE_PATH"),
-		DatabaseDSN:     os.Getenv("DATABASE_DSN"),
+	serverAddr := os.Getenv("SERVER_ADDRESS")
+	baseURL := os.Getenv("BASE_URL")
+	fileStoragePath := os.Getenv("FILE_STORAGE_PATH")
+	databaseDSN := os.Getenv("DATABASE_DSN")
+
+	if serverAddr == "" {
+		flag.StringVar(&serverAddr, "a", defaultServerAddr, "server address")
 	}
-	if config.ServerAddress == "" {
-		flag.StringVar(&config.ServerAddress, "a", defaultServerAddr, "server address")
+	if baseURL == "" {
+		flag.StringVar(&baseURL, "b", defaultBaseURL, "base url")
 	}
-	if config.BaseURL == "" {
-		flag.StringVar(&config.BaseURL, "b", defaultBaseURL, "base url")
+	if fileStoragePath == "" {
+		flag.StringVar(&fileStoragePath, "f", defaultFileStoragePath, "file storage path")
 	}
-	if config.FileStoragePath == "" {
-		flag.StringVar(&config.FileStoragePath, "f", defaultFileStoragePath, "file storage path")
+	if databaseDSN == "" {
+		flag.StringVar(&databaseDSN, "d", defaultDatabaseDSN, "postgres dsn")
 	}
-	if config.DatabaseDSN == "" {
-		flag.StringVar(&config.DatabaseDSN, "d", defaultDatabaseDSN, "postgres dsn")
-	}
+
 	flag.Parse()
+
+	config := Config{
+		ServerAddress:   serverAddr,
+		BaseURL:         baseURL,
+		FileStoragePath: fileStoragePath,
+		DatabaseDSN:     databaseDSN,
+	}
 
 	return config
 }
