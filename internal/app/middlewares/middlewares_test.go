@@ -288,3 +288,23 @@ func TestDecodeCookieValue(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkCookieAuthMiddleware(b *testing.B) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hello, world"))
+	})
+
+	req, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	cookie := &http.Cookie{Name: "authCookie", Value: "mockCookieValue"}
+	req.AddCookie(cookie)
+
+	rr := httptest.NewRecorder()
+
+	for i := 0; i < b.N; i++ {
+		CookieAuthMiddleware(handler).ServeHTTP(rr, req)
+	}
+}
