@@ -5,6 +5,8 @@ import (
 	"sync"
 )
 
+var _ IRepository = (*MemoryRepository)(nil)
+
 type MemoryRepository struct {
 	urls []URL
 	mu   sync.RWMutex
@@ -21,8 +23,8 @@ func (mr *MemoryRepository) Add(ctx context.Context, url URL) error {
 	defer mr.mu.Unlock()
 
 	// check if the original URL already exists for any user
-	for _, entry := range mr.urls {
-		if entry.OriginalURL == url.OriginalURL {
+	for _, u := range mr.urls {
+		if u.OriginalURL == url.OriginalURL {
 			return ErrURLDuplicate
 		}
 	}
@@ -32,8 +34,8 @@ func (mr *MemoryRepository) Add(ctx context.Context, url URL) error {
 }
 
 func (mr *MemoryRepository) AddMany(ctx context.Context, urls []URL) error {
-	for _, url := range urls {
-		if err := mr.Add(ctx, url); err != nil {
+	for _, u := range urls {
+		if err := mr.Add(ctx, u); err != nil {
 			return err
 		}
 	}
@@ -44,9 +46,9 @@ func (mr *MemoryRepository) GetBySlug(ctx context.Context, slug string) (URL, er
 	mr.mu.RLock()
 	defer mr.mu.RUnlock()
 
-	for _, url := range mr.urls {
-		if url.Slug == slug {
-			return url, nil
+	for _, u := range mr.urls {
+		if u.Slug == slug {
+			return u, nil
 		}
 	}
 	return URL{}, ErrURLNotExsit
@@ -57,9 +59,9 @@ func (mr *MemoryRepository) GetByUser(ctx context.Context, userID string) ([]URL
 	defer mr.mu.RUnlock()
 
 	var userURLs []URL
-	for _, url := range mr.urls {
-		if url.UserID == userID {
-			userURLs = append(userURLs, url)
+	for _, u := range mr.urls {
+		if u.UserID == userID {
+			userURLs = append(userURLs, u)
 		}
 	}
 
@@ -73,21 +75,21 @@ func (mr *MemoryRepository) GetByOriginalURL(ctx context.Context, originalURL st
 	mr.mu.RLock()
 	defer mr.mu.RUnlock()
 
-	for _, url := range mr.urls {
-		if url.OriginalURL == originalURL {
-			return url, nil
+	for _, u := range mr.urls {
+		if u.OriginalURL == originalURL {
+			return u, nil
 		}
 	}
 	return URL{}, ErrURLNotExsit
 }
 
-func (mr *MemoryRepository) DeleteMany(ctx context.Context, deleteRequests []DeleteRequest) error {
+func (mr *MemoryRepository) DeleteMany(ctx context.Context, delReqs []DeleteRequest) error {
 	mr.mu.RLock()
 	defer mr.mu.RUnlock()
 
-	for _, req := range deleteRequests {
-		for i, url := range mr.urls {
-			if url.Slug == req.Slug && url.UserID == req.UserID {
+	for _, dr := range delReqs {
+		for i, u := range mr.urls {
+			if u.Slug == dr.Slug && u.UserID == dr.UserID {
 				mr.urls[i].IsDeleted = true
 			}
 		}

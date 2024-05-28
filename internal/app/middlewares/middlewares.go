@@ -16,11 +16,10 @@ import (
 
 type contextKey string
 
-const UserIDContextKey contextKey = "userID"
-
 const (
-	cookieName = "authCookie"
-	secretKey  = "secretKeyHere"
+	UserIDContextKey contextKey = "userID"
+	cookieName                  = "authCookie"
+	secretKey                   = "secretKeyHere"
 )
 
 type gzipWriter struct {

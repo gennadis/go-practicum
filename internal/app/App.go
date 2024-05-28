@@ -1,4 +1,4 @@
-package app
+package App
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 )
 
 type App struct {
-	Repository        repository.Repository
+	Repository        repository.IRepository
 	Handler           *handlers.Handler
 	BackgroundDeleter *deleter.BackgroundDeleter
 	context           context.Context

@@ -7,7 +7,7 @@ import (
 )
 
 func TestSetConfig(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name                string
 		envServerAddr       string
 		envBaseURL          string
@@ -42,29 +42,29 @@ func TestSetConfig(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("SERVER_ADDRESS", tt.envServerAddr)
-			os.Setenv("BASE_URL", tt.envBaseURL)
-			os.Setenv("FILE_STORAGE_PATH", tt.envFileStorage)
-			os.Setenv("DATABASE_DSN", tt.envDatabaseDSN)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			os.Setenv("SERVER_ADDRESS", tc.envServerAddr)
+			os.Setenv("BASE_URL", tc.envBaseURL)
+			os.Setenv("FILE_STORAGE_PATH", tc.envFileStorage)
+			os.Setenv("DATABASE_DSN", tc.envDatabaseDSN)
 
 			config := NewConfiguration()
 
-			if config.ServerAddress != tt.expectedServer {
-				t.Errorf("Expected ServerAddr to be '%s', got '%s'", tt.expectedServer, config.ServerAddress)
+			if config.ServerAddress != tc.expectedServer {
+				t.Errorf("Expected ServerAddr to be '%s', got '%s'", tc.expectedServer, config.ServerAddress)
 			}
 
-			if config.BaseURL != tt.expectedBaseURL {
-				t.Errorf("Expected BaseURL to be '%s', got '%s'", tt.expectedBaseURL, config.BaseURL)
+			if config.BaseURL != tc.expectedBaseURL {
+				t.Errorf("Expected BaseURL to be '%s', got '%s'", tc.expectedBaseURL, config.BaseURL)
 			}
 
-			if config.FileStoragePath != tt.expectedFileStore {
-				t.Errorf("Expected FileStoragePath to be '%s', got '%s'", tt.expectedFileStore, config.FileStoragePath)
+			if config.FileStoragePath != tc.expectedFileStore {
+				t.Errorf("Expected FileStoragePath to be '%s', got '%s'", tc.expectedFileStore, config.FileStoragePath)
 			}
 
-			if config.DatabaseDSN != tt.expectedDatabaseDSN {
-				t.Errorf("Expected DatabaseDSN to be '%s', got '%s'", tt.expectedDatabaseDSN, config.DatabaseDSN)
+			if config.DatabaseDSN != tc.expectedDatabaseDSN {
+				t.Errorf("Expected DatabaseDSN to be '%s', got '%s'", tc.expectedDatabaseDSN, config.DatabaseDSN)
 			}
 
 			os.Clearenv()
@@ -73,7 +73,7 @@ func TestSetConfig(t *testing.T) {
 }
 
 func TestSetConfigWithFlags(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name                string
 		args                []string
 		expectedServer      string
@@ -99,31 +99,31 @@ func TestSetConfigWithFlags(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
 			oldArgs := os.Args
 			defer func() { os.Args = oldArgs }()
 
-			os.Args = append([]string{"cmd"}, tt.args...)
+			os.Args = append([]string{"cmd"}, tc.args...)
 
 			config := NewConfiguration()
 
-			if config.ServerAddress != tt.expectedServer {
-				t.Errorf("Expected ServerAddr to be '%s', got '%s'", tt.expectedServer, config.ServerAddress)
+			if config.ServerAddress != tc.expectedServer {
+				t.Errorf("Expected ServerAddr to be '%s', got '%s'", tc.expectedServer, config.ServerAddress)
 			}
 
-			if config.BaseURL != tt.expectedBaseURL {
-				t.Errorf("Expected BaseURL to be '%s', got '%s'", tt.expectedBaseURL, config.BaseURL)
+			if config.BaseURL != tc.expectedBaseURL {
+				t.Errorf("Expected BaseURL to be '%s', got '%s'", tc.expectedBaseURL, config.BaseURL)
 			}
 
-			if config.FileStoragePath != tt.expectedFile {
-				t.Errorf("Expected FileStoragePath to be '%s', got '%s'", tt.expectedFile, config.FileStoragePath)
+			if config.FileStoragePath != tc.expectedFile {
+				t.Errorf("Expected FileStoragePath to be '%s', got '%s'", tc.expectedFile, config.FileStoragePath)
 			}
 
-			if config.DatabaseDSN != tt.expectedDatabaseDSN {
-				t.Errorf("Expected DatabaseDSN to be '%s', got '%s'", tt.expectedDatabaseDSN, config.DatabaseDSN)
+			if config.DatabaseDSN != tc.expectedDatabaseDSN {
+				t.Errorf("Expected DatabaseDSN to be '%s', got '%s'", tc.expectedDatabaseDSN, config.DatabaseDSN)
 			}
 		})
 	}

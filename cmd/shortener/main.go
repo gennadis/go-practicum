@@ -5,14 +5,14 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gennadis/shorturl/internal/app"
+	App "github.com/gennadis/shorturl/internal/app"
 	"github.com/gennadis/shorturl/internal/app/config"
 )
 
 func main() {
 	ctx := context.Background()
 	cfg := config.NewConfiguration()
-	app, err := app.NewApp(ctx, cfg)
+	app, err := App.NewApp(ctx, cfg)
 	if err != nil {
 		log.Fatalf("error creating app: %v", err)
 	}

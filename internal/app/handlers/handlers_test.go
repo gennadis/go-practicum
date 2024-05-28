@@ -26,14 +26,14 @@ func TestGenerateSlug(t *testing.T) {
 		slug := generateSlug()
 		assert.Greater(t, len(slug), 0)
 		assert.Len(t, slug, slugLen, "Generated slug length mismatch")
-		for _, char := range slug {
-			assert.Contains(t, charset, string(char), "Invalid character found in slug")
+		for _, c := range slug {
+			assert.Contains(t, charset, string(c), "Invalid character found in slug")
 		}
 	}
 }
 
 func TestHandleShortenURL(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name                string
 		requestBody         string
 		expectedStatus      int
@@ -44,7 +44,7 @@ func TestHandleShortenURL(t *testing.T) {
 			name:                "ValidRequest",
 			requestBody:         "https://example.com",
 			expectedStatus:      http.StatusCreated,
-			expectedBody:        baseURL + "/", // plus the slug
+			expectedBody:        baseURL + "/",
 			expectedContentType: PlainTextContentType,
 		},
 		{
@@ -55,7 +55,7 @@ func TestHandleShortenURL(t *testing.T) {
 			expectedContentType: PlainTextContentType,
 		},
 	}
-	for _, tc := range tests {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := repository.NewMemoryRepository()
 			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
@@ -75,7 +75,6 @@ func TestHandleShortenURL(t *testing.T) {
 
 			if tc.expectedStatus == http.StatusCreated {
 				shortURL := recorder.Body.String()
-				// Extracting slug from short URL
 				slug := strings.TrimPrefix(shortURL, baseURL+"/")
 				assert.NotEmpty(t, slug, "slug should not be empty")
 				assert.Len(t, slug, slugLen, "slug length should be equal to slugLen const")
@@ -85,7 +84,7 @@ func TestHandleShortenURL(t *testing.T) {
 }
 
 func TestHandleJSONShortenURL(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name                string
 		requestBody         string
 		expectedStatus      int
@@ -127,7 +126,7 @@ func TestHandleJSONShortenURL(t *testing.T) {
 			expectedContentType: PlainTextContentType,
 		},
 	}
-	for _, tc := range tests {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := repository.NewMemoryRepository()
 			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
@@ -159,7 +158,7 @@ func TestHandleJSONShortenURL(t *testing.T) {
 
 func TestHandleExpandURL(t *testing.T) {
 	ctx := context.Background()
-	tests := []struct {
+	testCases := []struct {
 		name           string
 		slug           string
 		expectedStatus int
@@ -175,7 +174,7 @@ func TestHandleExpandURL(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 		},
 	}
-	for _, tc := range tests {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := repository.NewMemoryRepository()
 			url := repository.NewURL("testSlug", "https://example.com", userID, false)
@@ -202,7 +201,7 @@ func TestHandleExpandURL(t *testing.T) {
 }
 
 func TestDefaultHandler(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name           string
 		method         string
 		expectedStatus int
@@ -223,7 +222,7 @@ func TestDefaultHandler(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 		},
 	}
-	for _, tc := range tests {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := repository.NewMemoryRepository()
 			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
@@ -245,7 +244,7 @@ func TestDefaultHandler(t *testing.T) {
 
 func TestHandleGetUserURLs(t *testing.T) {
 	ctx := context.Background()
-	tests := []struct {
+	testCases := []struct {
 		name           string
 		userID         string
 		expectedStatus int
@@ -264,7 +263,7 @@ func TestHandleGetUserURLs(t *testing.T) {
 			expectedBody:   "",
 		},
 	}
-	for _, tc := range tests {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := repository.NewMemoryRepository()
 			if tc.userID == userID {
@@ -292,9 +291,9 @@ func TestHandleGetUserURLs(t *testing.T) {
 }
 
 func TestHandleDatabasePing(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name           string
-		storage        repository.Repository
+		storage        repository.IRepository
 		expectedStatus int
 	}{
 		{
@@ -303,7 +302,7 @@ func TestHandleDatabasePing(t *testing.T) {
 			expectedStatus: http.StatusOK,
 		},
 	}
-	for _, tc := range tests {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			backgroundDeleter := deleter.NewBackgroundDeleter(tc.storage)
 			handler := NewHandler(tc.storage, backgroundDeleter, baseURL)
@@ -321,7 +320,7 @@ func TestHandleDatabasePing(t *testing.T) {
 }
 
 func TestHandleBatchJSONShortenURL(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name                string
 		requestBody         string
 		expectedStatus      int
@@ -341,12 +340,12 @@ func TestHandleBatchJSONShortenURL(t *testing.T) {
 		},
 		{
 			name:                "InvalidRequestBody",
-			requestBody:         `[{"correlation_id": "1"}]`, // missing original_url
+			requestBody:         `[{"correlation_id": "1"}]`,
 			expectedStatus:      http.StatusBadRequest,
 			expectedContentType: PlainTextContentType,
 		},
 	}
-	for _, tc := range tests {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := repository.NewMemoryRepository()
 			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)

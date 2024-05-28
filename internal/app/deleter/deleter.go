@@ -12,29 +12,18 @@ import (
 const deleteChanBufferSize = 100
 
 type BackgroundDeleter struct {
-	repo       repository.Repository
+	repo       repository.IRepository
 	DeleteChan chan repository.DeleteRequest
 	ErrorChan  chan error
 }
 
-func NewBackgroundDeleter(repo repository.Repository) *BackgroundDeleter {
+func NewBackgroundDeleter(repo repository.IRepository) *BackgroundDeleter {
 	bd := &BackgroundDeleter{
 		repo:       repo,
 		DeleteChan: make(chan repository.DeleteRequest, deleteChanBufferSize),
 		ErrorChan:  make(chan error, deleteChanBufferSize),
 	}
 	return bd
-}
-
-func (m *BackgroundDeleter) handleDeletions(ctx context.Context, deleteRequests *[]repository.DeleteRequest) {
-	if len(*deleteRequests) > 0 {
-		err := m.repo.DeleteMany(ctx, *deleteRequests)
-		if err != nil {
-			m.ErrorChan <- err
-		}
-		log.Printf("delete requests handled successfully: %v", deleteRequests)
-		*deleteRequests = nil
-	}
 }
 
 func (m *BackgroundDeleter) Run(ctx context.Context) *sync.WaitGroup {
@@ -66,4 +55,15 @@ func (m *BackgroundDeleter) Run(ctx context.Context) *sync.WaitGroup {
 	}()
 
 	return wg
+}
+
+func (m *BackgroundDeleter) handleDeletions(ctx context.Context, delReqs *[]repository.DeleteRequest) {
+	if len(*delReqs) > 0 {
+		err := m.repo.DeleteMany(ctx, *delReqs)
+		if err != nil {
+			m.ErrorChan <- err
+		}
+		log.Printf("delete requests handled successfully: %v", delReqs)
+		*delReqs = nil
+	}
 }

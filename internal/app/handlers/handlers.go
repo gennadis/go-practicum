@@ -17,7 +17,7 @@ import (
 
 const (
 	charset = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	slugLen = 6 //should be greater than 0
+	slugLen = 6
 )
 
 const (
@@ -28,13 +28,6 @@ const (
 var ErrorMissingUserIDCtx = errors.New("no userID in context")
 
 type (
-	Handler struct {
-		Router            *chi.Mux
-		repo              repository.Repository
-		backgroundDeleter *deleter.BackgroundDeleter
-		baseURL           string
-	}
-
 	ShortenURLRequest struct {
 		OriginalURL string `json:"url"`
 	}
@@ -50,7 +43,7 @@ type (
 		ShortURL      string `json:"short_url"`
 	}
 	UserURL struct {
-		ShortUrl    string `json:"short_url"`
+		ShortURL    string `json:"short_url"`
 		OriginalURL string `json:"original_url"`
 	}
 )
@@ -63,11 +56,18 @@ func generateSlug() string {
 	return string(b)
 }
 
-func NewHandler(repository repository.Repository, backgroundDeleter *deleter.BackgroundDeleter, baseURL string) *Handler {
+type Handler struct {
+	Router            *chi.Mux
+	repo              repository.IRepository
+	backgroundDeleter *deleter.BackgroundDeleter
+	baseURL           string
+}
+
+func NewHandler(repo repository.IRepository, bgDeleter *deleter.BackgroundDeleter, baseURL string) *Handler {
 	h := Handler{
 		Router:            chi.NewRouter(),
-		repo:              repository,
-		backgroundDeleter: backgroundDeleter,
+		repo:              repo,
+		backgroundDeleter: bgDeleter,
 		baseURL:           baseURL,
 	}
 
@@ -90,37 +90,6 @@ func NewHandler(repository repository.Repository, backgroundDeleter *deleter.Bac
 	h.Router.MethodNotAllowed(h.HandleMethodNotAllowed)
 
 	return &h
-}
-
-func (h *Handler) getUserIDFromCtx(r *http.Request) (string, error) {
-	userID, ok := r.Context().Value(middlewares.UserIDContextKey).(string)
-	if !ok {
-		log.Print(ErrorMissingUserIDCtx.Error())
-		return "", ErrorMissingUserIDCtx
-	}
-	return userID, nil
-}
-
-func (h *Handler) respondWithPlainText(w http.ResponseWriter, response string, statusCode int) {
-	w.Header().Set("Content-Type", PlainTextContentType)
-	w.WriteHeader(statusCode)
-	if _, err := w.Write([]byte(response)); err != nil {
-		log.Println("error writing response:", err)
-	}
-}
-
-func (h *Handler) respondWithJson(w http.ResponseWriter, statusCode int, data interface{}) {
-	respJSON, err := json.Marshal(data)
-	if err != nil {
-		log.Println("error marshaling response:", err)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", JSONContentType)
-	w.WriteHeader(statusCode)
-	if _, err := w.Write(respJSON); err != nil {
-		log.Println("error writing response:", err)
-	}
 }
 
 func (h *Handler) HandleShortenURL(w http.ResponseWriter, r *http.Request) {
@@ -262,8 +231,8 @@ func (h *Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var userURLs []UserURL
-	for _, url := range urls {
-		userURLs = append(userURLs, UserURL{ShortUrl: h.baseURL + "/" + url.Slug, OriginalURL: url.OriginalURL})
+	for _, u := range urls {
+		userURLs = append(userURLs, UserURL{ShortURL: h.baseURL + "/" + u.Slug, OriginalURL: u.OriginalURL})
 	}
 
 	h.respondWithJson(w, http.StatusOK, userURLs)
@@ -301,8 +270,8 @@ func (h *Handler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *http.Reque
 
 	var batchShortenResp []BatchShortenURLResponse
 	var batchURLs []repository.URL
-	for _, el := range batchShortenReq {
-		if el.OriginalURL == "" {
+	for _, u := range batchShortenReq {
+		if u.OriginalURL == "" {
 			log.Println("missing url parameter")
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
@@ -310,10 +279,10 @@ func (h *Handler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *http.Reque
 
 		slug := generateSlug()
 		url := h.baseURL + "/" + slug
-		log.Printf("original url %s, shortened url: %s", el.OriginalURL, url)
-		URL := repository.NewURL(slug, el.OriginalURL, userID, false)
+		log.Printf("original url %s, shortened url: %s", u.OriginalURL, url)
+		URL := repository.NewURL(slug, u.OriginalURL, userID, false)
 		batchURLs = append(batchURLs, *URL)
-		batchShortenResp = append(batchShortenResp, BatchShortenURLResponse{CorrelationID: el.CorrelationID, ShortURL: url})
+		batchShortenResp = append(batchShortenResp, BatchShortenURLResponse{CorrelationID: u.CorrelationID, ShortURL: url})
 	}
 
 	err = h.repo.AddMany(r.Context(), batchURLs)
@@ -352,4 +321,35 @@ func (h *Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusAccepted)
 	log.Printf("slugs %s deletion request for user %s accepted", slugs, userID)
+}
+
+func (h *Handler) getUserIDFromCtx(r *http.Request) (string, error) {
+	userID, ok := r.Context().Value(middlewares.UserIDContextKey).(string)
+	if !ok {
+		log.Print(ErrorMissingUserIDCtx.Error())
+		return "", ErrorMissingUserIDCtx
+	}
+	return userID, nil
+}
+
+func (h *Handler) respondWithPlainText(w http.ResponseWriter, response string, statusCode int) {
+	w.Header().Set("Content-Type", PlainTextContentType)
+	w.WriteHeader(statusCode)
+	if _, err := w.Write([]byte(response)); err != nil {
+		log.Println("error writing response:", err)
+	}
+}
+
+func (h *Handler) respondWithJson(w http.ResponseWriter, statusCode int, data interface{}) {
+	respJSON, err := json.Marshal(data)
+	if err != nil {
+		log.Println("error marshaling response:", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", JSONContentType)
+	w.WriteHeader(statusCode)
+	if _, err := w.Write(respJSON); err != nil {
+		log.Println("error writing response:", err)
+	}
 }

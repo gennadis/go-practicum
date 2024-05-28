@@ -65,9 +65,9 @@ func TestPostgresRepository_AddMany(t *testing.T) {
 	mock.ExpectBegin()
 	stmt := mock.ExpectPrepare("INSERT INTO url")
 
-	for _, url := range urls {
+	for _, u := range urls {
 		stmt.ExpectExec().
-			WithArgs(url.Slug, url.OriginalURL, url.UserID, url.IsDeleted).
+			WithArgs(u.Slug, u.OriginalURL, u.UserID, u.IsDeleted).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 	}
 
@@ -137,8 +137,8 @@ func TestPostgresRepository_GetByUser(t *testing.T) {
 	}
 
 	rows := sqlmock.NewRows([]string{"slug", "original_url", "is_deleted"})
-	for _, url := range expectedURLs {
-		rows.AddRow(url.Slug, url.OriginalURL, url.IsDeleted)
+	for _, u := range expectedURLs {
+		rows.AddRow(u.Slug, u.OriginalURL, u.IsDeleted)
 	}
 
 	mock.ExpectQuery("SELECT slug, original_url, is_deleted").
@@ -154,9 +154,9 @@ func TestPostgresRepository_GetByUser(t *testing.T) {
 		t.Errorf("number of returned URLs does not match expected URLs")
 	}
 
-	for i, url := range urls {
+	for i, u := range urls {
 		expectedURL := expectedURLs[i]
-		if url.Slug != expectedURL.Slug || url.OriginalURL != expectedURL.OriginalURL || url.IsDeleted != expectedURL.IsDeleted {
+		if u.Slug != expectedURL.Slug || u.OriginalURL != expectedURL.OriginalURL || u.IsDeleted != expectedURL.IsDeleted {
 			t.Errorf("returned URL does not match expected URL")
 		}
 	}
@@ -221,7 +221,7 @@ func TestPostgresRepository_DeleteMany(t *testing.T) {
 	defer db.Close()
 
 	repo := PostgresRepository{db: db}
-	deleteRequests := []DeleteRequest{
+	delReqs := []DeleteRequest{
 		{
 			Slug:   "test_slug_1",
 			UserID: "test_user_1",
@@ -235,7 +235,7 @@ func TestPostgresRepository_DeleteMany(t *testing.T) {
 	mock.ExpectBegin()
 	stmt := mock.ExpectPrepare("UPDATE url")
 
-	for _, dr := range deleteRequests {
+	for _, dr := range delReqs {
 		stmt.ExpectExec().
 			WithArgs(dr.Slug, dr.UserID).
 			WillReturnResult(sqlmock.NewResult(1, 1))
@@ -243,7 +243,7 @@ func TestPostgresRepository_DeleteMany(t *testing.T) {
 
 	mock.ExpectCommit()
 
-	err := repo.DeleteMany(context.Background(), deleteRequests)
+	err := repo.DeleteMany(context.Background(), delReqs)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
