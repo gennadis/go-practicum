@@ -5,24 +5,24 @@ import (
 	"log"
 	"net/http"
 
-	App "github.com/gennadis/shorturl/internal/app"
+	"github.com/gennadis/shorturl/internal/app"
 	"github.com/gennadis/shorturl/internal/app/config"
 )
 
 func main() {
 	ctx := context.Background()
 	cfg := config.NewConfiguration()
-	app, err := App.NewApp(ctx, cfg)
+	a, err := app.NewApp(ctx, cfg)
 	if err != nil {
 		log.Fatalf("error creating app: %v", err)
 	}
 
-	wg := app.BackgroundDeleter.Run(ctx)
+	wg := a.BackgroundDeleter.Run(ctx)
 	go func() {
-		defer close(app.BackgroundDeleter.DeleteChan)
-		defer close(app.BackgroundDeleter.ErrorChan)
+		defer close(a.BackgroundDeleter.DeleteChan)
+		defer close(a.BackgroundDeleter.ErrorChan)
 		wg.Wait()
 	}()
 
-	log.Fatal(http.ListenAndServe(cfg.ServerAddress, app.Handler.Router))
+	log.Fatal(http.ListenAndServe(cfg.ServerAddress, a.Handler.Router))
 }
