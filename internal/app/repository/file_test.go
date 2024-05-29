@@ -19,7 +19,7 @@ func TestFileStore_ReadWrite(t *testing.T) {
 
 	ctx := context.Background()
 
-	tests := []struct {
+	testCases := []struct {
 		name          string
 		slug          string
 		originalURL   string
@@ -44,29 +44,29 @@ func TestFileStore_ReadWrite(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			store, err := NewFileRepository(tmpfile.Name())
 			if err != nil {
 				t.Fatalf("Error creating file store: %v", err)
 			}
-			url := NewURL(test.slug, test.originalURL, test.userID, false)
+			url := NewURL(tc.slug, tc.originalURL, tc.userID, false)
 			if err := store.Add(ctx, *url); err != nil {
-				if err != test.expectedError {
-					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
+				if err != tc.expectedError {
+					t.Errorf("Expected error: %v, got: %v", tc.expectedError, err)
 				}
 				return
 			}
-			createdURL, err := store.GetBySlug(ctx, test.slug)
+			createdURL, err := store.GetBySlug(ctx, tc.slug)
 			if err != nil {
-				if err != test.expectedError {
-					t.Errorf("Expected error: %v, got: %v", test.expectedError, err)
+				if err != tc.expectedError {
+					t.Errorf("Expected error: %v, got: %v", tc.expectedError, err)
 				}
 				return
 			}
 
-			if createdURL.OriginalURL != test.expectedValue {
-				t.Errorf("Expected value %s, got %s", test.expectedValue, createdURL.OriginalURL)
+			if createdURL.OriginalURL != tc.expectedValue {
+				t.Errorf("Expected value %s, got %s", tc.expectedValue, createdURL.OriginalURL)
 			}
 		})
 	}

@@ -12,11 +12,13 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+var _ IRepository = (*PostgresRepository)(nil)
+
 type PostgresRepository struct {
 	db *sql.DB
 }
 
-func NewPostgresRepository(ctx context.Context, postgresDSN string) (*PostgresRepository, error) {
+func NewPostgresRepository(ctx context.Context, pgDSN string) (*PostgresRepository, error) {
 	createTableQuery := `
 	CREATE TABLE IF NOT EXISTS url (
 		id SERIAL PRIMARY KEY,
@@ -30,7 +32,7 @@ func NewPostgresRepository(ctx context.Context, postgresDSN string) (*PostgresRe
 	CREATE UNIQUE INDEX IF NOT EXISTS idx_original_url ON url (original_url);
 	`
 
-	db, err := sql.Open("pgx", postgresDSN)
+	db, err := sql.Open("pgx", pgDSN)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %w", err)
 	}
@@ -89,8 +91,8 @@ func (sr *PostgresRepository) AddMany(ctx context.Context, urls []URL) error {
 	}
 	defer stmt.Close()
 
-	for _, url := range urls {
-		if _, err = stmt.ExecContext(ctx, url.Slug, url.OriginalURL, url.UserID, url.IsDeleted); err != nil {
+	for _, u := range urls {
+		if _, err = stmt.ExecContext(ctx, u.Slug, u.OriginalURL, u.UserID, u.IsDeleted); err != nil {
 			return err
 		}
 	}
@@ -167,7 +169,7 @@ func (sr *PostgresRepository) Ping(ctx context.Context) error {
 	return sr.db.PingContext(ctx)
 }
 
-func (sr *PostgresRepository) DeleteMany(ctx context.Context, deleteRequests []DeleteRequest) error {
+func (sr *PostgresRepository) DeleteMany(ctx context.Context, delReqs []DeleteRequest) error {
 	deleteURLsQuery := `
 	UPDATE url
 	SET is_deleted = True
@@ -192,7 +194,7 @@ func (sr *PostgresRepository) DeleteMany(ctx context.Context, deleteRequests []D
 	}
 	defer stmt.Close()
 
-	for _, dr := range deleteRequests {
+	for _, dr := range delReqs {
 		if _, err = stmt.ExecContext(ctx, dr.Slug, dr.UserID); err != nil {
 			return err
 		}
