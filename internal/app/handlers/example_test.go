@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
 
@@ -37,7 +38,9 @@ func ExampleHandler_HandleExpandURL() {
 	handler := NewHandler(repo, bgDeleter, "http://localhost:8080")
 
 	url := repository.NewURL("testslug", "http://example.com", "user1", false)
-	repo.Add(context.Background(), *url)
+	if err := repo.Add(context.Background(), *url); err != nil {
+		log.Fatalf("failed to add URL: %v", err)
+	}
 
 	req := httptest.NewRequest(http.MethodGet, "/testslug", nil)
 	req = req.WithContext(context.WithValue(req.Context(), middlewares.UserIDContextKey, "user1"))
