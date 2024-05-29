@@ -10,6 +10,8 @@ import (
 	"github.com/gennadis/shorturl/internal/app/repository"
 )
 
+// App represents the main application structure.
+// It contains the primary components required for the application to function.
 type App struct {
 	// Repository is the data repository for storing URLs.
 	Repository repository.IRepository
