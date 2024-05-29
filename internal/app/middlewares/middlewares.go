@@ -20,12 +20,11 @@ type contextKey string
 // UserIDContextKey is the context key for the user ID.
 const UserIDContextKey contextKey = "userID"
 
-const (
-	// cookieName is the name of the authentication cookie.
-	cookieName = "authCookie"
-	// secretKey is the key used to sign the authentication cookie.
-	secretKey = "secretKeyHere"
-)
+// cookieName is the name of the authentication cookie.
+const cookieName = "authCookie"
+
+// secretKey is the key used to sign the authentication cookie.
+const secretKey = "secretKeyHere"
 
 // gzipWriter is a custom http.ResponseWriter that supports gzip compression.
 type gzipWriter struct {

@@ -10,12 +10,15 @@ import (
 	"github.com/gennadis/shorturl/internal/app/repository"
 )
 
-// App represents the main application.
 type App struct {
-	Repository        repository.IRepository     // Repository is the data repository for storing URLs.
-	Handler           *handlers.Handler          // Handler is the HTTP request handler.
-	BackgroundDeleter *deleter.BackgroundDeleter // BackgroundDeleter handles background URL deletions.
-	context           context.Context            // context is the application context.
+	// Repository is the data repository for storing URLs.
+	Repository repository.IRepository
+	// Handler is the HTTP request handler.
+	Handler *handlers.Handler
+	// BackgroundDeleter handles background URL deletions.
+	BackgroundDeleter *deleter.BackgroundDeleter
+	// context is the application context.
+	context context.Context
 }
 
 // NewApp creates a new instance of the application.

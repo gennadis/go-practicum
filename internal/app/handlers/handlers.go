@@ -16,50 +16,49 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-const (
-	// charset represents the characters used for generating slugs.
-	// It excludes "l", "I", "O", "0" and "1" for enhanced clarity and readability.
-	charset = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	// slugLen represents the length of the generated slug.
-	slugLen = 6
-)
+// charset represents the characters used for generating slugs.
+// It excludes "l", "I", "O", "0" and "1" for enhanced clarity and readability.
+const charset = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
-const (
-	// JSONContentType is the content type for JSON responses.
-	JSONContentType = "application/json"
-	// PlainTextContentType is the content type for plain text responses.
-	PlainTextContentType = "text/plain; charset=utf-8"
-)
+// slugLen represents the length of the generated slug.
+const slugLen = 6
+
+// JSONContentType is the content type for JSON responses.
+const JSONContentType = "application/json"
+
+// PlainTextContentType is the content type for plain text responses.
+const PlainTextContentType = "text/plain; charset=utf-8"
 
 // ErrorMissingUserIDCtx is returned when user ID is missing in the context.
 var ErrorMissingUserIDCtx = errors.New("no userID in context")
 
-// Structs for request and response payloads.
-type (
-	// ShortenURLRequest represents the request payload for shortening a URL.
-	ShortenURLRequest struct {
-		OriginalURL string `json:"url"`
-	}
-	// ShortenURLResponse represents the response payload for a shortened URL.
-	ShortenURLResponse struct {
-		Result string `json:"result"`
-	}
-	// BatchShortenURLRequest represents the request payload for batch shortening URLs.
-	BatchShortenURLRequest struct {
-		CorrelationID string `json:"correlation_id"`
-		OriginalURL   string `json:"original_url"`
-	}
-	// BatchShortenURLResponse represents the response payload for batch shortened URLs.
-	BatchShortenURLResponse struct {
-		CorrelationID string `json:"correlation_id"`
-		ShortURL      string `json:"short_url"`
-	}
-	// UserURL represents a user's URL entry.
-	UserURL struct {
-		ShortURL    string `json:"short_url"`
-		OriginalURL string `json:"original_url"`
-	}
-)
+// ShortenURLRequest represents the request payload for shortening a URL.
+type ShortenURLRequest struct {
+	OriginalURL string `json:"url"`
+}
+
+// ShortenURLResponse represents the response payload for a shortened URL.
+type ShortenURLResponse struct {
+	Result string `json:"result"`
+}
+
+// BatchShortenURLRequest represents the request payload for batch shortening URLs.
+type BatchShortenURLRequest struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+// BatchShortenURLResponse represents the response payload for batch shortened URLs.
+type BatchShortenURLResponse struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
+
+// UserURL represents a user's URL entry.
+type UserURL struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+}
 
 // Function to generate a random slug for shortened URLs.
 func generateSlug() string {

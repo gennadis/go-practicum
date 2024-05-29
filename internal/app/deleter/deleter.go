@@ -10,10 +10,8 @@ import (
 	"github.com/gennadis/shorturl/internal/app/repository"
 )
 
-const (
-	// deleteChanBufferSize is the buffer size for the delete channel.
-	deleteChanBufferSize = 100
-)
+// deleteChanBufferSize is the buffer size for the delete channel.
+const deleteChanBufferSize = 100
 
 // BackgroundDeleter handles background deletion tasks.
 type BackgroundDeleter struct {

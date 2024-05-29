@@ -6,16 +6,17 @@ import (
 	"os"
 )
 
-const (
-	// defaultServerAddr is the default address for the server to listen on.
-	defaultServerAddr = "localhost:8080"
-	// defaultBaseURL is the default base URL for the application.
-	defaultBaseURL = "http://localhost:8080"
-	// defaultFileStoragePath is the default file storage path.
-	defaultFileStoragePath = "local_storage.json"
-	// defaultDatabaseDSN is the default Data Source Name (DSN) for the database connection.
-	defaultDatabaseDSN = ""
-)
+// defaultServerAddr is the default address for the server to listen on.
+const defaultServerAddr = "localhost:8080"
+
+// defaultBaseURL is the default base URL for the application.
+const defaultBaseURL = "http://localhost:8080"
+
+// defaultFileStoragePath is the default file storage path.
+const defaultFileStoragePath = "local_storage.json"
+
+// defaultDatabaseDSN is the default Data Source Name (DSN) for the database connection.
+const defaultDatabaseDSN = ""
 
 // Config holds the configuration values for the application.
 type Config struct {
