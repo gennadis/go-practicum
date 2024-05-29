@@ -1,3 +1,4 @@
+// Package handlers provides HTTP request handlers for various endpoints in the short URL service.
 package handlers
 
 import (
@@ -15,39 +16,51 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-const (
-	charset = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	slugLen = 6
-)
+// charset represents the characters used for generating slugs.
+// It excludes "l", "I", "O", "0" and "1" for enhanced clarity and readability.
+const charset = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
-const (
-	JSONContentType      = "application/json"
-	PlainTextContentType = "text/plain; charset=utf-8"
-)
+// slugLen represents the length of the generated slug.
+const slugLen = 6
 
+// JSONContentType is the content type for JSON responses.
+const JSONContentType = "application/json"
+
+// PlainTextContentType is the content type for plain text responses.
+const PlainTextContentType = "text/plain; charset=utf-8"
+
+// ErrorMissingUserIDCtx is returned when user ID is missing in the context.
 var ErrorMissingUserIDCtx = errors.New("no userID in context")
 
-type (
-	ShortenURLRequest struct {
-		OriginalURL string `json:"url"`
-	}
-	ShortenURLResponse struct {
-		Result string `json:"result"`
-	}
-	BatchShortenURLRequest struct {
-		CorrelationID string `json:"correlation_id"`
-		OriginalURL   string `json:"original_url"`
-	}
-	BatchShortenURLResponse struct {
-		CorrelationID string `json:"correlation_id"`
-		ShortURL      string `json:"short_url"`
-	}
-	UserURL struct {
-		ShortURL    string `json:"short_url"`
-		OriginalURL string `json:"original_url"`
-	}
-)
+// ShortenURLRequest represents the request payload for shortening a URL.
+type ShortenURLRequest struct {
+	OriginalURL string `json:"url"`
+}
 
+// ShortenURLResponse represents the response payload for a shortened URL.
+type ShortenURLResponse struct {
+	Result string `json:"result"`
+}
+
+// BatchShortenURLRequest represents the request payload for batch shortening URLs.
+type BatchShortenURLRequest struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+// BatchShortenURLResponse represents the response payload for batch shortened URLs.
+type BatchShortenURLResponse struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
+
+// UserURL represents a user's URL entry.
+type UserURL struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+}
+
+// Function to generate a random slug for shortened URLs.
 func generateSlug() string {
 	b := make([]byte, slugLen)
 	for i := range b {
@@ -56,6 +69,7 @@ func generateSlug() string {
 	return string(b)
 }
 
+// Handler handles HTTP requests for the short URL service.
 type Handler struct {
 	Router            *chi.Mux
 	repo              repository.IRepository
@@ -63,6 +77,7 @@ type Handler struct {
 	baseURL           string
 }
 
+// NewHandler creates a new instance of the Handler.
 func NewHandler(repo repository.IRepository, bgDeleter *deleter.BackgroundDeleter, baseURL string) *Handler {
 	h := Handler{
 		Router:            chi.NewRouter(),
@@ -71,27 +86,27 @@ func NewHandler(repo repository.IRepository, bgDeleter *deleter.BackgroundDelete
 		baseURL:           baseURL,
 	}
 
+	// Middleware setup.
 	h.Router.Use(
 		middleware.Logger,
 		middlewares.CookieAuthMiddleware,
 		middlewares.GzipMiddleware,
 	)
 
+	// Routes setup.
 	h.Router.Get("/{slug}", h.HandleExpandURL)
 	h.Router.Get("/api/user/urls", h.HandleGetUserURLs)
 	h.Router.Get("/ping", h.HandleDatabasePing)
-
 	h.Router.Post("/", h.HandleShortenURL)
 	h.Router.Post("/api/shorten", h.HandleJSONShortenURL)
 	h.Router.Post("/api/shorten/batch", h.HandleBatchJSONShortenURL)
-
 	h.Router.Delete("/api/user/urls", h.HandleDeleteUserURLs)
-
 	h.Router.MethodNotAllowed(h.HandleMethodNotAllowed)
 
 	return &h
 }
 
+// Method to handle shortening URL requests.
 func (h *Handler) HandleShortenURL(w http.ResponseWriter, r *http.Request) {
 	userID, err := h.getUserIDFromCtx(r)
 	if errors.Is(err, ErrorMissingUserIDCtx) {
@@ -138,6 +153,7 @@ func (h *Handler) HandleShortenURL(w http.ResponseWriter, r *http.Request) {
 	h.respondWithPlainText(w, h.baseURL+"/"+url.Slug, http.StatusCreated)
 }
 
+// Method to handle shortening URL requests with JSON payload.
 func (h *Handler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Request) {
 	userID, err := h.getUserIDFromCtx(r)
 	if errors.Is(err, ErrorMissingUserIDCtx) {
@@ -184,6 +200,7 @@ func (h *Handler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Request) {
 	h.respondWithJson(w, http.StatusCreated, ShortenURLResponse{Result: h.baseURL + "/" + url.Slug})
 }
 
+// Method to handle expanding shortened URLs.
 func (h *Handler) HandleExpandURL(w http.ResponseWriter, r *http.Request) {
 	_, err := h.getUserIDFromCtx(r)
 	if errors.Is(err, ErrorMissingUserIDCtx) {
@@ -211,10 +228,12 @@ func (h *Handler) HandleExpandURL(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
+// Method to handle method not allowed.
 func (h *Handler) HandleMethodNotAllowed(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 }
 
+// Method to handle getting user's URLs.
 func (h *Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 	userID, err := h.getUserIDFromCtx(r)
 	if errors.Is(err, ErrorMissingUserIDCtx) {
@@ -238,6 +257,7 @@ func (h *Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 	h.respondWithJson(w, http.StatusOK, userURLs)
 }
 
+// Method to handle database ping.
 func (h *Handler) HandleDatabasePing(w http.ResponseWriter, r *http.Request) {
 	if err := h.repo.Ping(r.Context()); err != nil {
 		log.Printf("database ping error: %s", err)
@@ -247,6 +267,7 @@ func (h *Handler) HandleDatabasePing(w http.ResponseWriter, r *http.Request) {
 	log.Println("database ping successful")
 }
 
+// Method to handle batch shortening URL requests with JSON payload.
 func (h *Handler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *http.Request) {
 	userID, err := h.getUserIDFromCtx(r)
 	if errors.Is(err, ErrorMissingUserIDCtx) {
@@ -295,6 +316,7 @@ func (h *Handler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *http.Reque
 	h.respondWithJson(w, http.StatusCreated, batchShortenResp)
 }
 
+// Method to handle deleting user's URLs.
 func (h *Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 	userID, err := h.getUserIDFromCtx(r)
 	if errors.Is(err, ErrorMissingUserIDCtx) {
@@ -323,6 +345,7 @@ func (h *Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 	log.Printf("slugs %s deletion request for user %s accepted", slugs, userID)
 }
 
+// Method to extract user ID from request context.
 func (h *Handler) getUserIDFromCtx(r *http.Request) (string, error) {
 	userID, ok := r.Context().Value(middlewares.UserIDContextKey).(string)
 	if !ok {
@@ -332,6 +355,7 @@ func (h *Handler) getUserIDFromCtx(r *http.Request) (string, error) {
 	return userID, nil
 }
 
+// Method to respond with a plain text.
 func (h *Handler) respondWithPlainText(w http.ResponseWriter, response string, statusCode int) {
 	w.Header().Set("Content-Type", PlainTextContentType)
 	w.WriteHeader(statusCode)
@@ -340,6 +364,7 @@ func (h *Handler) respondWithPlainText(w http.ResponseWriter, response string, s
 	}
 }
 
+// Method to respond with JSON.
 func (h *Handler) respondWithJson(w http.ResponseWriter, statusCode int, data interface{}) {
 	respJSON, err := json.Marshal(data)
 	if err != nil {

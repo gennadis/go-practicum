@@ -1,3 +1,4 @@
+// Package middlewares provides middleware functions for HTTP servers.
 package middlewares
 
 import (
@@ -16,25 +17,30 @@ import (
 
 type contextKey string
 
+// UserIDContextKey is the context key for the user ID.
 const UserIDContextKey contextKey = "userID"
 
-const (
-	cookieName = "authCookie"
-	secretKey  = "secretKeyHere"
-)
+// cookieName is the name of the authentication cookie.
+const cookieName = "authCookie"
 
+// secretKey is the key used to sign the authentication cookie.
+const secretKey = "secretKeyHere"
+
+// gzipWriter is a custom http.ResponseWriter that supports gzip compression.
 type gzipWriter struct {
 	http.ResponseWriter
 	Writer io.Writer
 }
 
+// Write writes compressed data to the gzipWriter.
 func (w gzipWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
+// GzipMiddleware is a middleware that compresses HTTP responses using gzip.
 func GzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// check if the request contains gzip-encoded data
+		// Check if the request contains gzip-encoded data
 		if strings.Contains(strings.ToLower(r.Header.Get("Content-Encoding")), "gzip") {
 			uncompressed, err := gzip.NewReader(r.Body)
 			if err != nil {
@@ -45,7 +51,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 			r.Body = uncompressed
 		}
 
-		// check if the client accepts gzip encoding in the response
+		// Check if the client accepts gzip encoding in the response
 		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			compressed := gzip.NewWriter(w)
 			defer compressed.Close()
@@ -57,6 +63,7 @@ func GzipMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// CookieAuthMiddleware is a middleware that handles authentication using cookies.
 func CookieAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie(cookieName)
@@ -90,6 +97,7 @@ func CookieAuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// signCookie signs the cookie value with an HMAC using the secret key.
 func signCookie(value string) string {
 	mac := hmac.New(sha256.New, []byte(secretKey))
 	mac.Write([]byte(value))
@@ -101,6 +109,7 @@ func signCookie(value string) string {
 	return encodedValue
 }
 
+// isValidCookie checks if the cookie is valid by verifying its HMAC signature.
 func isValidCookie(cookie *http.Cookie) bool {
 	if cookie == nil || cookie.Value == "" {
 		return false
@@ -118,6 +127,7 @@ func isValidCookie(cookie *http.Cookie) bool {
 	return hmac.Equal(hmacSignature, expectedHMAC)
 }
 
+// decodeCookieValue decodes the cookie value and returns the value and the HMAC signature.
 func decodeCookieValue(cookie *http.Cookie) ([]byte, []byte, error) {
 	decodedCookie, err := base64.StdEncoding.DecodeString(cookie.Value)
 	if err != nil || len(decodedCookie) < sha256.Size {

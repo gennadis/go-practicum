@@ -1,3 +1,4 @@
+// Package repository provides implementations of the IRepository interface using PostgreSQL as storage.
 package repository
 
 import (
@@ -12,12 +13,16 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+// Ensure PostgresRepository implements the IRepository interface.
 var _ IRepository = (*PostgresRepository)(nil)
 
+// PostgresRepository is a PostgreSQL implementation of the IRepository interface.
 type PostgresRepository struct {
+	// db is the database connection.
 	db *sql.DB
 }
 
+// NewPostgresRepository creates a new PostgresRepository instance and sets up the database schema if it doesn't exist.
 func NewPostgresRepository(ctx context.Context, pgDSN string) (*PostgresRepository, error) {
 	createTableQuery := `
 	CREATE TABLE IF NOT EXISTS url (
@@ -47,6 +52,7 @@ func NewPostgresRepository(ctx context.Context, pgDSN string) (*PostgresReposito
 	return &PostgresRepository{db: db}, nil
 }
 
+// Add adds a new URL to the PostgreSQL database. It returns an error if the URL already exists.
 func (sr *PostgresRepository) Add(ctx context.Context, url URL) error {
 	addURLQuery := `
 	INSERT INTO url
@@ -66,6 +72,7 @@ func (sr *PostgresRepository) Add(ctx context.Context, url URL) error {
 	return nil
 }
 
+// AddMany adds multiple URLs to the PostgreSQL database. It returns an error if adding any URL fails.
 func (sr *PostgresRepository) AddMany(ctx context.Context, urls []URL) error {
 	addURLsQuery := `
 	INSERT INTO url
@@ -99,6 +106,7 @@ func (sr *PostgresRepository) AddMany(ctx context.Context, urls []URL) error {
 	return tx.Commit()
 }
 
+// GetBySlug retrieves a URL by its slug. It returns an error if the URL does not exist.
 func (sr *PostgresRepository) GetBySlug(ctx context.Context, slug string) (URL, error) {
 	getURLquery := `
 	SELECT slug, original_url, user_uuid, is_deleted
@@ -114,6 +122,7 @@ func (sr *PostgresRepository) GetBySlug(ctx context.Context, slug string) (URL, 
 	return url, nil
 }
 
+// GetByUser retrieves all URLs associated with a user. It returns an error if no URLs are found.
 func (sr *PostgresRepository) GetByUser(ctx context.Context, userID string) ([]URL, error) {
 	getURLsByUserQuery := `
 	SELECT slug, original_url, is_deleted
@@ -147,6 +156,7 @@ func (sr *PostgresRepository) GetByUser(ctx context.Context, userID string) ([]U
 	return urls, nil
 }
 
+// GetByOriginalURL retrieves a URL by its original URL. It returns an error if the URL does not exist.
 func (sr *PostgresRepository) GetByOriginalURL(ctx context.Context, originalURL string) (URL, error) {
 	getURLByOriginalURLQuery := `
 	SELECT slug, user_uuid, is_deleted
@@ -165,10 +175,7 @@ func (sr *PostgresRepository) GetByOriginalURL(ctx context.Context, originalURL 
 	return *url, nil
 }
 
-func (sr *PostgresRepository) Ping(ctx context.Context) error {
-	return sr.db.PingContext(ctx)
-}
-
+// DeleteMany marks multiple URLs as deleted based on the provided delete requests.
 func (sr *PostgresRepository) DeleteMany(ctx context.Context, delReqs []DeleteRequest) error {
 	deleteURLsQuery := `
 	UPDATE url
@@ -200,4 +207,9 @@ func (sr *PostgresRepository) DeleteMany(ctx context.Context, delReqs []DeleteRe
 		}
 	}
 	return tx.Commit()
+}
+
+// Ping checks the connection to the PostgreSQL database. It returns an error if the connection is not alive.
+func (sr *PostgresRepository) Ping(ctx context.Context) error {
+	return sr.db.PingContext(ctx)
 }
