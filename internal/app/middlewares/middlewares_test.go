@@ -291,7 +291,9 @@ func TestDecodeCookieValue(t *testing.T) {
 
 func BenchmarkCookieAuthMiddleware(b *testing.B) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("hello, world"))
+		if _, err := w.Write([]byte("hello, world")); err != nil {
+			b.Fatal(err)
+		}
 	})
 
 	req, err := http.NewRequest("GET", "/", nil)
