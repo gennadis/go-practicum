@@ -1,3 +1,4 @@
+// Package config provides configuration handling for the application.
 package config
 
 import (
@@ -6,19 +7,31 @@ import (
 )
 
 const (
-	defaultServerAddr      = "localhost:8080"
-	defaultBaseURL         = "http://localhost:8080"
+	// defaultServerAddr is the default address for the server to listen on.
+	defaultServerAddr = "localhost:8080"
+	// defaultBaseURL is the default base URL for the application.
+	defaultBaseURL = "http://localhost:8080"
+	// defaultFileStoragePath is the default file storage path.
 	defaultFileStoragePath = "local_storage.json"
-	defaultDatabaseDSN     = ""
+	// defaultDatabaseDSN is the default Data Source Name (DSN) for the database connection.
+	defaultDatabaseDSN = ""
 )
 
+// Config holds the configuration values for the application.
 type Config struct {
-	ServerAddress   string
-	BaseURL         string
+	// ServerAddress is the address the server will listen on.
+	ServerAddress string
+	// BaseURL is the base URL for the application.
+	BaseURL string
+	// FileStoragePath is the path to the file storage.
 	FileStoragePath string
-	DatabaseDSN     string
+	// DatabaseDSN is the Data Source Name for the database connection.
+	DatabaseDSN string
 }
 
+// NewConfiguration initializes and returns a new Config struct.
+// It reads configuration values from environment variables or command-line flags,
+// falling back to default values if not set.
 func NewConfiguration() Config {
 	config := Config{
 		ServerAddress:   os.Getenv("SERVER_ADDRESS"),
