@@ -31,9 +31,27 @@ func main() {
 	fmt.Println(buildDate)
 	fmt.Println(buildCommit)
 
+	// Load configuration settings.
+	cfg := config.NewConfiguration()
+
+	// Set log level based on configuration.
+	var logLevel slog.Level
+	switch cfg.LogLevel {
+	case "DEBUG":
+		logLevel = slog.LevelDebug
+	case "INFO":
+		logLevel = slog.LevelInfo
+	case "WARN":
+		logLevel = slog.LevelWarn
+	case "ERROR":
+		logLevel = slog.LevelError
+	default:
+		log.Fatalf("invalid log level: %v", cfg.LogLevel)
+	}
+
 	// Set default logger
 	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level:     slog.LevelDebug,
+		Level:     logLevel,
 		AddSource: true,
 	})
 	logger := slog.New(logHandler)
@@ -41,9 +59,6 @@ func main() {
 
 	// Create a new background context.
 	ctx := context.Background()
-
-	// Load configuration settings.
-	cfg := config.NewConfiguration()
 
 	// Initialize the application.
 	a, err := app.NewApp(ctx, cfg)
