@@ -3,7 +3,7 @@ package deleter
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -60,7 +60,7 @@ func (m *BackgroundDeleter) Run(ctx context.Context) *sync.WaitGroup {
 				return
 			// Log and handle errors.
 			case err := <-m.ErrorChan:
-				log.Printf("error handling deletion: %v", err)
+				slog.Error("url deletion requests handling", slog.Any("error", err))
 			}
 		}
 	}()
@@ -76,7 +76,7 @@ func (m *BackgroundDeleter) handleDeletions(ctx context.Context, delReqs *[]repo
 		if err != nil {
 			m.ErrorChan <- err
 		}
-		log.Printf("delete requests handled successfully: %v", delReqs)
+		slog.Debug("delete requests handled successfully", slog.Any("delete requests", &delReqs))
 		*delReqs = nil
 	}
 }

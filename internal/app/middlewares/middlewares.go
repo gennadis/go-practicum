@@ -8,7 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -77,7 +77,7 @@ func CookieAuthMiddleware(next http.Handler) http.Handler {
 			}
 
 			http.SetCookie(w, &newCookie)
-			log.Println("new cookie is set")
+			slog.Debug("new cookie set successfully", slog.String("user", userID))
 
 			ctx := context.WithValue(r.Context(), UserIDContextKey, userID)
 			next.ServeHTTP(w, r.WithContext(ctx))
@@ -86,11 +86,11 @@ func CookieAuthMiddleware(next http.Handler) http.Handler {
 
 		cookieValue, _, err := decodeCookieValue(cookie)
 		if err != nil {
-			log.Printf("error decoding cookie userID value: %v", err)
+			slog.Error("cookie decoding", slog.Any("error", err))
 			next.ServeHTTP(w, r)
 			return
 		}
-		log.Printf("cookie validation successful for user: %s", string(cookieValue))
+		slog.Debug("cookie validation successful", slog.String("user", string(cookieValue)))
 
 		ctx := context.WithValue(r.Context(), UserIDContextKey, string(cookieValue))
 		next.ServeHTTP(w, r.WithContext(ctx))

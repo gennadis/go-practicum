@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/gennadis/shorturl/internal/app"
 	"github.com/gennadis/shorturl/internal/app/config"
@@ -28,6 +30,14 @@ func main() {
 	fmt.Println(buildVersion)
 	fmt.Println(buildDate)
 	fmt.Println(buildCommit)
+
+	// Set default logger
+	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level:     slog.LevelDebug,
+		AddSource: true,
+	})
+	logger := slog.New(logHandler)
+	slog.SetDefault(logger)
 
 	// Create a new background context.
 	ctx := context.Background()

@@ -6,7 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -64,7 +64,7 @@ func (sr *PostgresRepository) Add(ctx context.Context, url URL) error {
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-			log.Printf("unique originalURL violation for %s", url.OriginalURL)
+			slog.Error("unique originalURL violation", slog.String("original url", url.OriginalURL))
 			return ErrURLDuplicate
 		}
 		return fmt.Errorf("failed to add URL: %w", err)
@@ -87,7 +87,7 @@ func (sr *PostgresRepository) AddMany(ctx context.Context, urls []URL) error {
 	defer func() {
 		if err != nil {
 			if rbErr := tx.Rollback(); rbErr != nil {
-				log.Printf("rollback error: %v", rbErr)
+				slog.Error("saving multiple URLs rollback", slog.Any("error", rbErr))
 			}
 		}
 	}()
@@ -133,7 +133,11 @@ func (sr *PostgresRepository) GetByUser(ctx context.Context, userID string) ([]U
 	urls := []URL{}
 	rows, err := sr.db.QueryContext(ctx, getURLsByUserQuery, userID)
 	if err != nil {
-		log.Printf("Error querying user URLs: %v", err)
+		slog.Error(
+			"queryinng user URLs",
+			slog.String("user", userID),
+			slog.Any("error", err),
+		)
 		return urls, ErrURLNotExsit
 	}
 	defer rows.Close()
@@ -142,7 +146,7 @@ func (sr *PostgresRepository) GetByUser(ctx context.Context, userID string) ([]U
 		var slug, originalURL string
 		var isDeleted bool
 		if err := rows.Scan(&slug, &originalURL, &isDeleted); err != nil {
-			log.Printf("Error scanning row: %v", err)
+			slog.Error("scanning QueryContext row", slog.Any("error", err))
 			return urls, ErrURLNotExsit
 		}
 		url := NewURL(slug, originalURL, userID, isDeleted)
@@ -150,7 +154,7 @@ func (sr *PostgresRepository) GetByUser(ctx context.Context, userID string) ([]U
 	}
 
 	if err := rows.Err(); err != nil {
-		log.Printf("Error iterating rows: %v", err)
+		slog.Error("iterating QueryContext row", slog.Any("error", err))
 		return urls, ErrURLNotExsit
 	}
 	return urls, nil
@@ -168,6 +172,11 @@ func (sr *PostgresRepository) GetByOriginalURL(ctx context.Context, originalURL 
 	var isDeleted bool
 	err := sr.db.QueryRowContext(ctx, getURLByOriginalURLQuery, originalURL).Scan(&slug, &userID, &isDeleted)
 	if err != nil {
+		slog.Error(
+			"get by original URL",
+			slog.String("original URL", originalURL),
+			slog.Any("error", err),
+		)
 		return URL{}, ErrURLNotExsit
 	}
 
@@ -185,24 +194,27 @@ func (sr *PostgresRepository) DeleteMany(ctx context.Context, delReqs []DeleteRe
 
 	tx, err := sr.db.Begin()
 	if err != nil {
+		slog.Error("multiple URLs deletion transaction start", slog.Any("error", err))
 		return err
 	}
 	defer func() {
 		if err != nil {
 			if rbErr := tx.Rollback(); rbErr != nil {
-				log.Printf("rollback error: %v", rbErr)
+				slog.Error("multiple URLs deletion rollback", slog.Any("error", rbErr))
 			}
 		}
 	}()
 
 	stmt, err := tx.PrepareContext(ctx, deleteURLsQuery)
 	if err != nil {
+		slog.Error("multiple URLs deletion context preparation", slog.Any("error", err))
 		return err
 	}
 	defer stmt.Close()
 
 	for _, dr := range delReqs {
 		if _, err = stmt.ExecContext(ctx, dr.Slug, dr.UserID); err != nil {
+			slog.Error("multiple URLs deletion context execution", slog.Any("error", err))
 			return err
 		}
 	}
