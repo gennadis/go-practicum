@@ -13,10 +13,12 @@ func TestSetConfig(t *testing.T) {
 		envBaseURL          string
 		envFileStorage      string
 		envDatabaseDSN      string
+		envLogLevel         string
 		expectedServer      string
 		expectedBaseURL     string
 		expectedFileStore   string
 		expectedDatabaseDSN string
+		expectedLogLevel    string
 	}{
 		{
 			name:                "All environment variables set",
@@ -24,10 +26,12 @@ func TestSetConfig(t *testing.T) {
 			envBaseURL:          "http://test.baseurl.com",
 			envFileStorage:      "test_storage.json",
 			envDatabaseDSN:      "postgres://shorturl:mysecretpassword@127.0.0.1:5432/urls",
+			envLogLevel:         "INFO",
 			expectedServer:      "test.server.com",
 			expectedBaseURL:     "http://test.baseurl.com",
 			expectedFileStore:   "test_storage.json",
 			expectedDatabaseDSN: "postgres://shorturl:mysecretpassword@127.0.0.1:5432/urls",
+			expectedLogLevel:    "INFO",
 		},
 		{
 			name:                "Missing environment variables, use defaults",
@@ -35,10 +39,12 @@ func TestSetConfig(t *testing.T) {
 			envBaseURL:          "",
 			envFileStorage:      "",
 			envDatabaseDSN:      "",
+			envLogLevel:         "",
 			expectedServer:      "localhost:8080",
 			expectedBaseURL:     "http://localhost:8080",
 			expectedFileStore:   "local_storage.json",
 			expectedDatabaseDSN: "",
+			expectedLogLevel:    "INFO",
 		},
 	}
 
@@ -48,6 +54,7 @@ func TestSetConfig(t *testing.T) {
 			os.Setenv("BASE_URL", tc.envBaseURL)
 			os.Setenv("FILE_STORAGE_PATH", tc.envFileStorage)
 			os.Setenv("DATABASE_DSN", tc.envDatabaseDSN)
+			os.Setenv("LOG_LEVEL", tc.envLogLevel)
 
 			config := NewConfiguration()
 
@@ -80,14 +87,16 @@ func TestSetConfigWithFlags(t *testing.T) {
 		expectedBaseURL     string
 		expectedFile        string
 		expectedDatabaseDSN string
+		expectedLogLevel    string
 	}{
 		{
 			name:                "All flags provided",
-			args:                []string{"-a", "test.server.com", "-b", "http://test.baseurl.com", "-f", "test_storage.json", "-d", "postgres://shorturl:mysecretpassword@127.0.0.1:5432/urls"},
+			args:                []string{"-a", "test.server.com", "-b", "http://test.baseurl.com", "-f", "test_storage.json", "-d", "postgres://shorturl:mysecretpassword@127.0.0.1:5432/urls", "-l", "DEBUG"},
 			expectedServer:      "test.server.com",
 			expectedBaseURL:     "http://test.baseurl.com",
 			expectedFile:        "test_storage.json",
 			expectedDatabaseDSN: "postgres://shorturl:mysecretpassword@127.0.0.1:5432/urls",
+			expectedLogLevel:    "DEBUG",
 		},
 		{
 			name:                "Missing flags, use defaults",
@@ -96,6 +105,7 @@ func TestSetConfigWithFlags(t *testing.T) {
 			expectedBaseURL:     "http://localhost:8080",
 			expectedFile:        "local_storage.json",
 			expectedDatabaseDSN: "",
+			expectedLogLevel:    "INFO",
 		},
 	}
 
@@ -124,6 +134,10 @@ func TestSetConfigWithFlags(t *testing.T) {
 
 			if config.DatabaseDSN != tc.expectedDatabaseDSN {
 				t.Errorf("Expected DatabaseDSN to be '%s', got '%s'", tc.expectedDatabaseDSN, config.DatabaseDSN)
+			}
+
+			if config.LogLevel != tc.expectedLogLevel {
+				t.Errorf("Expected LogLevel to be '%s', got '%s'", tc.expectedLogLevel, config.LogLevel)
 			}
 		})
 	}
