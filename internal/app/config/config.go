@@ -4,6 +4,7 @@ package config
 import (
 	"flag"
 	"os"
+	"strings"
 )
 
 // defaultServerAddr is the default address for the server to listen on.
@@ -21,6 +22,9 @@ const defaultDatabaseDSN = ""
 // defaultLogLevel is the default log level.
 const defaultLogLevel = "INFO"
 
+// defaultEnableHTTPS is the default log level.
+const defaultEnableHTTPS = false
+
 // Config holds the configuration values for the application.
 type Config struct {
 	// ServerAddress is the address the server will listen on.
@@ -33,6 +37,8 @@ type Config struct {
 	DatabaseDSN string
 	// LogLevel is the log level for the application.
 	LogLevel string
+	// EnableHTTPS is the HTTPS mode for the application.
+	EnableHTTPS bool
 }
 
 // NewConfiguration initializes and returns a new Config struct.
@@ -45,6 +51,7 @@ func NewConfiguration() Config {
 		FileStoragePath: os.Getenv("FILE_STORAGE_PATH"),
 		DatabaseDSN:     os.Getenv("DATABASE_DSN"),
 		LogLevel:        os.Getenv("LOG_LEVEL"),
+		EnableHTTPS:     getEnableHTTPSEnv(),
 	}
 	if config.ServerAddress == "" {
 		flag.StringVar(&config.ServerAddress, "a", defaultServerAddr, "server address")
@@ -61,7 +68,26 @@ func NewConfiguration() Config {
 	if config.LogLevel == "" {
 		flag.StringVar(&config.LogLevel, "l", defaultLogLevel, "log level")
 	}
+	if !config.EnableHTTPS {
+		flag.BoolVar(&config.EnableHTTPS, "s", defaultEnableHTTPS, "enable HTTPS")
+	}
 	flag.Parse()
 
 	return config
+}
+
+func getEnableHTTPSEnv() bool {
+	v, exists := os.LookupEnv("ENABLE_HTTPS")
+	if !exists {
+		return defaultEnableHTTPS
+	}
+
+	switch strings.ToLower(v) {
+	case "true":
+		return true
+	case "false":
+		return false
+	default:
+		return defaultEnableHTTPS
+	}
 }
