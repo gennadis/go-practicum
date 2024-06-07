@@ -75,5 +75,15 @@ func main() {
 	}()
 
 	// Start the HTTP server and listen for incoming requests.
-	log.Fatal(http.ListenAndServe(cfg.ServerAddress, a.Handler.Router))
+	switch cfg.EnableHTTPS {
+	case true:
+		log.Fatal(http.ListenAndServeTLS(
+			cfg.ServerAddress,
+			"internal/app/config/localhost.crt",
+			"internal/app/config/localhost.key",
+			a.Handler.Router,
+		))
+	default:
+		log.Fatal(http.ListenAndServe(cfg.ServerAddress, a.Handler.Router))
+	}
 }
