@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/gennadis/shorturl/internal/app"
 	"github.com/gennadis/shorturl/internal/app/config"
@@ -25,15 +27,38 @@ var (
 // main is the entry point for the application.
 func main() {
 	// Print buildVersion, buildDate, and buildCommit on startup
-	fmt.Println(buildVersion)
-	fmt.Println(buildDate)
-	fmt.Println(buildCommit)
-
-	// Create a new background context.
-	ctx := context.Background()
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build date: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n", buildCommit)
 
 	// Load configuration settings.
 	cfg := config.NewConfiguration()
+
+	// Set log level based on configuration.
+	var logLevel slog.Level
+	switch cfg.LogLevel {
+	case "DEBUG":
+		logLevel = slog.LevelDebug
+	case "INFO":
+		logLevel = slog.LevelInfo
+	case "WARN":
+		logLevel = slog.LevelWarn
+	case "ERROR":
+		logLevel = slog.LevelError
+	default:
+		log.Fatalf("invalid log level: %v", cfg.LogLevel)
+	}
+
+	// Set default logger
+	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level:     logLevel,
+		AddSource: true,
+	})
+	logger := slog.New(logHandler)
+	slog.SetDefault(logger)
+
+	// Create a new background context.
+	ctx := context.Background()
 
 	// Initialize the application.
 	a, err := app.NewApp(ctx, cfg)
@@ -50,5 +75,15 @@ func main() {
 	}()
 
 	// Start the HTTP server and listen for incoming requests.
-	log.Fatal(http.ListenAndServe(cfg.ServerAddress, a.Handler.Router))
+	switch cfg.EnableHTTPS {
+	case true:
+		log.Fatal(http.ListenAndServeTLS(
+			cfg.ServerAddress,
+			"internal/app/config/localhost.crt",
+			"internal/app/config/localhost.key",
+			a.Handler.Router,
+		))
+	default:
+		log.Fatal(http.ListenAndServe(cfg.ServerAddress, a.Handler.Router))
+	}
 }

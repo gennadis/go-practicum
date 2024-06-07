@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
+	"log/slog"
 	"math/rand"
 	"net/http"
 
@@ -117,26 +117,34 @@ func (h *Handler) HandleShortenURL(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	originalURL, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("error reading request body: %v", err)
+		slog.Error("reading request body", slog.Any("error", err))
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
 	if len(originalURL) == 0 {
-		log.Println("missing url parameter")
+		slog.Error("url parameter is missing")
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
 	slug := generateSlug()
 	url := repository.NewURL(slug, string(originalURL), userID, false)
-	log.Printf("original url %s, shortened url: %s", originalURL, h.baseURL+"/"+url.Slug)
+	slog.Debug(
+		"slug generation",
+		slog.String("original url", url.OriginalURL),
+		slog.String("generated slug", slug),
+	)
 
 	if err := h.repo.Add(r.Context(), *url); err != nil {
 		if errors.Is(err, repository.ErrURLDuplicate) {
-			existingURL, err := h.repo.GetByOriginalURL(r.Context(), string(originalURL))
+			existingURL, err := h.repo.GetByOriginalURL(r.Context(), url.OriginalURL)
 			if err != nil {
-				log.Printf("error reading existing slug for %s: %s", originalURL, err)
+				slog.Error(
+					"reading existing slug",
+					slog.String("orignal url", url.OriginalURL),
+					slog.Any("error", err),
+				)
 				http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 				return
 			}
@@ -145,7 +153,7 @@ func (h *Handler) HandleShortenURL(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Printf("error saving URL: %v", err)
+		slog.Error("saving url", slog.Any("error", err))
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -164,26 +172,34 @@ func (h *Handler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	var shortenReq ShortenURLRequest
 	if err := json.NewDecoder(r.Body).Decode(&shortenReq); err != nil {
-		log.Println("error unmarshaling request data:", err)
+		slog.Error("unmarshalling request data", slog.Any("error", err))
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
 	if len(shortenReq.OriginalURL) == 0 {
-		log.Println("missing url parameter")
+		slog.Error("missing original url parameter", slog.Any("shorten request", shortenReq))
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
 	slug := generateSlug()
 	url := repository.NewURL(slug, shortenReq.OriginalURL, userID, false)
-	log.Printf("original url %s, shortened url: %s", shortenReq.OriginalURL, h.baseURL+"/"+url.Slug)
+	slog.Debug(
+		"url shortened successfully",
+		slog.String("original url", shortenReq.OriginalURL),
+		slog.String("generated slug", slug),
+	)
 
 	if err := h.repo.Add(r.Context(), *url); err != nil {
 		if errors.Is(err, repository.ErrURLDuplicate) {
 			existingURL, err := h.repo.GetByOriginalURL(r.Context(), string(shortenReq.OriginalURL))
 			if err != nil {
-				log.Printf("error reading existing slug for %s: %s", shortenReq.OriginalURL, err)
+				slog.Error(
+					"reading existing slug",
+					slog.String("original url", shortenReq.OriginalURL),
+					slog.Any("error", err),
+				)
 				http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 				return
 			}
@@ -192,7 +208,7 @@ func (h *Handler) HandleJSONShortenURL(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Println("error saving URL:", err)
+		slog.Error("saving url to a storage", slog.Any("error", err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -209,20 +225,24 @@ func (h *Handler) HandleExpandURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slug := r.URL.Path[1:]
-	log.Printf("originalURL for slug %s requested", slug)
+	slog.Debug("original URL requested", slog.String("slug", slug))
 
 	url, err := h.repo.GetBySlug(r.Context(), slug)
 	if err != nil {
-		log.Printf("error retrieving original URL: %v", err)
+		slog.Error("retrieving original URL", slog.Any("error", err))
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 	if url.IsDeleted {
-		log.Printf("url with slug %s marked as deleted", slug)
+		slog.Debug("requested URL is marked as deleted", slog.Any("error", err))
 		http.Error(w, http.StatusText(http.StatusGone), http.StatusGone)
 		return
 	}
-	log.Printf("originalURL for slug %s found: %s", slug, url.OriginalURL)
+	slog.Debug(
+		"requested URL found",
+		slog.String("slug", slug),
+		slog.String("original URL", url.OriginalURL),
+	)
 
 	w.Header().Set("Location", url.OriginalURL)
 	w.WriteHeader(http.StatusTemporaryRedirect)
@@ -240,11 +260,11 @@ func (h *Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-	log.Printf("urls for user %s requested", userID)
+	slog.Debug("urls for user requested", slog.String("user", userID))
 
 	urls, err := h.repo.GetByUser(r.Context(), userID)
 	if errors.Is(err, repository.ErrURLNotExsit) {
-		log.Printf("no urls for user %s found", userID)
+		slog.Error("no saved urls found for user", slog.String("user", userID))
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -260,11 +280,10 @@ func (h *Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 // Method to handle database ping.
 func (h *Handler) HandleDatabasePing(w http.ResponseWriter, r *http.Request) {
 	if err := h.repo.Ping(r.Context()); err != nil {
-		log.Printf("database ping error: %s", err)
+		slog.Error("storage ping", slog.Any("error", err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
 	w.WriteHeader(http.StatusOK)
-	log.Println("database ping successful")
 }
 
 // Method to handle batch shortening URL requests with JSON payload.
@@ -278,13 +297,13 @@ func (h *Handler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *http.Reque
 	defer r.Body.Close()
 	var batchShortenReq []BatchShortenURLRequest
 	if err := json.NewDecoder(r.Body).Decode(&batchShortenReq); err != nil {
-		log.Println("error unmarshaling request data:", err)
+		slog.Error("unmarshaling request data", slog.Any("error", err))
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
 	if len(batchShortenReq) == 0 {
-		log.Println("empty batch request slice")
+		slog.Debug("empty batch request slice", slog.String("user", userID))
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
@@ -293,14 +312,18 @@ func (h *Handler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *http.Reque
 	var batchURLs []repository.URL
 	for _, u := range batchShortenReq {
 		if u.OriginalURL == "" {
-			log.Println("missing url parameter")
+			slog.Debug("url parameter is missing", slog.String("user", userID))
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
 
 		slug := generateSlug()
 		url := h.baseURL + "/" + slug
-		log.Printf("original url %s, shortened url: %s", u.OriginalURL, url)
+		slog.Debug(
+			"slug generation",
+			slog.String("original url", u.OriginalURL),
+			slog.String("slug", slug),
+		)
 		URL := repository.NewURL(slug, u.OriginalURL, userID, false)
 		batchURLs = append(batchURLs, *URL)
 		batchShortenResp = append(batchShortenResp, BatchShortenURLResponse{CorrelationID: u.CorrelationID, ShortURL: url})
@@ -308,7 +331,7 @@ func (h *Handler) HandleBatchJSONShortenURL(w http.ResponseWriter, r *http.Reque
 
 	err = h.repo.AddMany(r.Context(), batchURLs)
 	if err != nil {
-		log.Println("error batch adding urls:", err)
+		slog.Error("urls batch creation", slog.Any("error", err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -327,11 +350,15 @@ func (h *Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 	var slugs []string
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(&slugs); err != nil {
-		log.Println("error unmarshaling request data:", err)
+		slog.Error("unmarshalling request data", slog.Any("error", err))
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
-	log.Printf("user %s requested deletion of slugs: %s", userID, slugs)
+	slog.Debug(
+		"urls deletion requested",
+		slog.String("user", userID),
+		slog.Any("slugs", slugs),
+	)
 
 	if len(slugs) == 0 {
 		w.WriteHeader(http.StatusAccepted)
@@ -342,14 +369,18 @@ func (h *Handler) HandleDeleteUserURLs(w http.ResponseWriter, r *http.Request) {
 		h.backgroundDeleter.DeleteChan <- repository.DeleteRequest{Slug: s, UserID: userID}
 	}
 	w.WriteHeader(http.StatusAccepted)
-	log.Printf("slugs %s deletion request for user %s accepted", slugs, userID)
+	slog.Debug(
+		"urls deletion request accepted",
+		slog.String("user", userID),
+		slog.Any("slugs", slugs),
+	)
 }
 
 // Method to extract user ID from request context.
 func (h *Handler) getUserIDFromCtx(r *http.Request) (string, error) {
 	userID, ok := r.Context().Value(middlewares.UserIDContextKey).(string)
 	if !ok {
-		log.Print(ErrorMissingUserIDCtx.Error())
+		slog.Error("getting userID from context", slog.Any("error", ErrorMissingUserIDCtx.Error()))
 		return "", ErrorMissingUserIDCtx
 	}
 	return userID, nil
@@ -360,7 +391,7 @@ func (h *Handler) respondWithPlainText(w http.ResponseWriter, response string, s
 	w.Header().Set("Content-Type", PlainTextContentType)
 	w.WriteHeader(statusCode)
 	if _, err := w.Write([]byte(response)); err != nil {
-		log.Println("error writing response:", err)
+		slog.Error("writing plain text resonse", slog.Any("error", err))
 	}
 }
 
@@ -368,13 +399,13 @@ func (h *Handler) respondWithPlainText(w http.ResponseWriter, response string, s
 func (h *Handler) respondWithJson(w http.ResponseWriter, statusCode int, data interface{}) {
 	respJSON, err := json.Marshal(data)
 	if err != nil {
-		log.Println("error marshaling response:", err)
+		slog.Error("marshalling response", slog.Any("error", err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", JSONContentType)
 	w.WriteHeader(statusCode)
 	if _, err := w.Write(respJSON); err != nil {
-		log.Println("error writing response:", err)
+		slog.Error("writing JSON resonse", slog.Any("error", err))
 	}
 }

@@ -4,7 +4,7 @@ package repository
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 
 	"github.com/gennadis/shorturl/internal/app/config"
 )
@@ -70,13 +70,13 @@ type IRepository interface {
 func NewRepository(ctx context.Context, cfg config.Config) (IRepository, error) {
 	switch {
 	case cfg.DatabaseDSN != "":
-		log.Println("storage init: Database storage selected")
+		slog.Info("database storage selected")
 		return NewPostgresRepository(ctx, cfg.DatabaseDSN)
 	case cfg.FileStoragePath != "":
-		log.Println("storage init: File storage selected")
+		slog.Info("file storage selected")
 		return NewFileRepository(cfg.FileStoragePath)
 	default:
-		log.Println("storage init: Memory storage selected")
+		slog.Info("memory storage selected")
 		return NewMemoryRepository(), nil
 	}
 }
