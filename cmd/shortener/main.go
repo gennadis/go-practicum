@@ -27,9 +27,9 @@ var (
 // main is the entry point for the application.
 func main() {
 	// Print buildVersion, buildDate, and buildCommit on startup
-	fmt.Println(buildVersion)
-	fmt.Println(buildDate)
-	fmt.Println(buildCommit)
+	fmt.Printf("Build version: %s\n", buildVersion)
+	fmt.Printf("Build date: %s\n", buildDate)
+	fmt.Printf("Build commit: %s\n", buildCommit)
 
 	// Load configuration settings.
 	cfg := config.NewConfiguration()
