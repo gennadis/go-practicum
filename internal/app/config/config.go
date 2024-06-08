@@ -2,92 +2,81 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
+	"log/slog"
 	"os"
-	"strings"
+
+	"github.com/caarlos0/env/v11"
+	"github.com/imdario/mergo"
 )
-
-// defaultServerAddr is the default address for the server to listen on.
-const defaultServerAddr = "localhost:8080"
-
-// defaultBaseURL is the default base URL for the application.
-const defaultBaseURL = "http://localhost:8080"
-
-// defaultFileStoragePath is the default file storage path.
-const defaultFileStoragePath = "local_storage.json"
-
-// defaultDatabaseDSN is the default Data Source Name (DSN) for the database connection.
-const defaultDatabaseDSN = ""
-
-// defaultLogLevel is the default log level.
-const defaultLogLevel = "INFO"
-
-// defaultEnableHTTPS is the default log level.
-const defaultEnableHTTPS = false
 
 // Config holds the configuration values for the application.
 type Config struct {
 	// ServerAddress is the address the server will listen on.
-	ServerAddress string
+	ServerAddress string `env:"SERVER_ADDRESS" json:"server_address"`
 	// BaseURL is the base URL for the application.
-	BaseURL string
+	BaseURL string `env:"BASE_URL" json:"base_url"`
 	// FileStoragePath is the path to the file storage.
-	FileStoragePath string
+	FileStoragePath string `env:"FILE_STORAGE_PATH" json:"file_storage_path"`
 	// DatabaseDSN is the Data Source Name for the database connection.
-	DatabaseDSN string
+	DatabaseDSN string `env:"DATABASE_DSN" json:"database_dsn"`
 	// LogLevel is the log level for the application.
-	LogLevel string
+	LogLevel string `env:"LOG_LEVEL" json:"log_level"`
 	// EnableHTTPS is the HTTPS mode for the application.
-	EnableHTTPS bool
+	EnableHTTPS bool `env:"ENABLE_HTTPS" json:"enable_https"`
+	// ConfigFilePath is the `config.json` filepath for the application.
+	ConfigFilePath string `env:"CONFIG" envDefault:"./internal/app/config/config.json"`
 }
 
 // NewConfiguration initializes and returns a new Config struct.
-// It reads configuration values from environment variables or command-line flags,
-// falling back to default values if not set.
+// It reads configuration values from command-line flags, environment variables or a JSON file,
+// falling back to default values from `config.json` if CLI flags or environment variables were not set.
+// Environment variables has bigger priority than CLI flags.
 func NewConfiguration() Config {
-	config := Config{
-		ServerAddress:   os.Getenv("SERVER_ADDRESS"),
-		BaseURL:         os.Getenv("BASE_URL"),
-		FileStoragePath: os.Getenv("FILE_STORAGE_PATH"),
-		DatabaseDSN:     os.Getenv("DATABASE_DSN"),
-		LogLevel:        os.Getenv("LOG_LEVEL"),
-		EnableHTTPS:     getEnableHTTPSEnv(),
-	}
-	if config.ServerAddress == "" {
-		flag.StringVar(&config.ServerAddress, "a", defaultServerAddr, "server address")
-	}
-	if config.BaseURL == "" {
-		flag.StringVar(&config.BaseURL, "b", defaultBaseURL, "base url")
-	}
-	if config.FileStoragePath == "" {
-		flag.StringVar(&config.FileStoragePath, "f", defaultFileStoragePath, "file storage path")
-	}
-	if config.DatabaseDSN == "" {
-		flag.StringVar(&config.DatabaseDSN, "d", defaultDatabaseDSN, "postgres dsn")
-	}
-	if config.LogLevel == "" {
-		flag.StringVar(&config.LogLevel, "l", defaultLogLevel, "log level")
-	}
-	if !config.EnableHTTPS {
-		flag.BoolVar(&config.EnableHTTPS, "s", defaultEnableHTTPS, "enable HTTPS")
-	}
+	cfg := Config{}
+
+	// Parse command-line flags into a Config struct
+	flag.StringVar(&cfg.ServerAddress, "a", "", "server address")
+	flag.StringVar(&cfg.BaseURL, "b", "", "base url")
+	flag.StringVar(&cfg.FileStoragePath, "f", "", "file storage path")
+	flag.StringVar(&cfg.DatabaseDSN, "d", "", "postgres dsn")
+	flag.StringVar(&cfg.LogLevel, "l", "", "log level")
+	flag.BoolVar(&cfg.EnableHTTPS, "s", false, "enable HTTPS")
+	flag.StringVar(&cfg.ConfigFilePath, "c", "", "config.json file path")
 	flag.Parse()
 
-	return config
+	// Parse environment variables into a Config struct
+	if err := env.Parse(&cfg); err != nil {
+		slog.Error("reading environment variables", slog.Any("error", err))
+	}
+
+	// Read configuration from a JSON file
+	jsonConfig, err := readConfigFile(cfg.ConfigFilePath)
+	if err != nil {
+		slog.Error("reading JSON config file", slog.Any("error", err))
+		return cfg
+	}
+	// Merge JSON config into the Config struct
+	if err := mergo.Merge(&cfg, jsonConfig); err != nil {
+		slog.Error("merging JSON config", slog.Any("error", err))
+	}
+
+	return cfg
 }
 
-func getEnableHTTPSEnv() bool {
-	v, exists := os.LookupEnv("ENABLE_HTTPS")
-	if !exists {
-		return defaultEnableHTTPS
+// readConfigFile reads configuration from a JSON file.
+func readConfigFile(filepath string) (Config, error) {
+	file, err := os.Open(filepath)
+	if err != nil {
+		return Config{}, err
+	}
+	defer file.Close()
+
+	var config Config
+	if err := json.NewDecoder(file).Decode(&config); err != nil {
+		return Config{}, err
 	}
 
-	switch strings.ToLower(v) {
-	case "true":
-		return true
-	case "false":
-		return false
-	default:
-		return defaultEnableHTTPS
-	}
+	return config, nil
 }
