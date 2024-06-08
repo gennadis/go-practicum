@@ -68,10 +68,10 @@ func NewConfiguration() Config {
 // readConfigFile reads configuration from a JSON file.
 func readConfigFile(filepath string) (Config, error) {
 	file, err := os.Open(filepath)
-	defer file.Close()
 	if err != nil {
 		return Config{}, err
 	}
+	defer file.Close()
 
 	var config Config
 	if err := json.NewDecoder(file).Decode(&config); err != nil {
