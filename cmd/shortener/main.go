@@ -8,9 +8,17 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gennadis/shorturl/internal/app"
 	"github.com/gennadis/shorturl/internal/app/config"
+)
+
+// Server gracefule shutdown timeout.
+const (
+	serverShutdownTimeout = time.Second * 5
 )
 
 // To set buildVersion, buildDate, and buildCommit at compile time, use the
@@ -58,32 +66,50 @@ func main() {
 	slog.SetDefault(logger)
 
 	// Create a new background context.
-	ctx := context.Background()
+	ctx, cancelCtx := signal.NotifyContext(context.Background(), syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
+	defer cancelCtx()
 
 	// Initialize the application.
-	a, err := app.NewApp(ctx, cfg)
+	app, err := app.NewApp(ctx, cfg)
 	if err != nil {
 		log.Fatalf("error creating app: %v", err)
 	}
 
+	// Start HTTP server
+	srv := &http.Server{
+		Addr:    cfg.ServerAddress,
+		Handler: app.Handler.Router,
+	}
+
 	// Run the background deleter in a separate goroutine.
-	wg := a.BackgroundDeleter.Run(ctx)
+	wg := app.BackgroundDeleter.Run(ctx)
 	go func() {
-		defer close(a.BackgroundDeleter.DeleteChan)
-		defer close(a.BackgroundDeleter.ErrorChan)
+		defer close(app.BackgroundDeleter.DeleteChan)
+		defer close(app.BackgroundDeleter.ErrorChan)
 		wg.Wait()
+	}()
+
+	// Set up graceful shtdown
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-ctx.Done()
+		slog.Info("application received shutdown signal")
+		shutdownTimeoutCtx, cancelShutdownTimeoutCtx := context.WithTimeout(context.Background(), serverShutdownTimeout)
+		defer cancelShutdownTimeoutCtx()
+		if err := srv.Shutdown(shutdownTimeoutCtx); err != nil {
+			slog.Info("server shutdown", "error", err)
+		}
 	}()
 
 	// Start the HTTP server and listen for incoming requests.
 	switch cfg.EnableHTTPS {
 	case true:
-		log.Fatal(http.ListenAndServeTLS(
-			cfg.ServerAddress,
+		log.Fatal(srv.ListenAndServeTLS(
 			"internal/app/config/localhost.crt",
 			"internal/app/config/localhost.key",
-			a.Handler.Router,
 		))
 	default:
-		log.Fatal(http.ListenAndServe(cfg.ServerAddress, a.Handler.Router))
+		log.Fatal(srv.ListenAndServe())
 	}
 }
