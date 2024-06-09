@@ -3,17 +3,16 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/gennadis/shorturl/internal/app"
 	"github.com/gennadis/shorturl/internal/app/config"
+	"github.com/gennadis/shorturl/internal/app/logger"
 )
 
 // Server gracefule shutdown timeout.
@@ -34,36 +33,16 @@ var (
 
 // main is the entry point for the application.
 func main() {
-	// Print buildVersion, buildDate, and buildCommit on startup
-	fmt.Printf("Build version: %s\n", buildVersion)
-	fmt.Printf("Build date: %s\n", buildDate)
-	fmt.Printf("Build commit: %s\n", buildCommit)
-
 	// Load configuration settings.
 	cfg := config.NewConfiguration()
 
-	// Set log level based on configuration.
-	var logLevel slog.Level
-	switch cfg.LogLevel {
-	case "DEBUG":
-		logLevel = slog.LevelDebug
-	case "INFO":
-		logLevel = slog.LevelInfo
-	case "WARN":
-		logLevel = slog.LevelWarn
-	case "ERROR":
-		logLevel = slog.LevelError
-	default:
-		log.Fatalf("invalid log level: %v", cfg.LogLevel)
-	}
+	// Set application Logger.
+	logger.SetLogger(cfg.LogLevel)
 
-	// Set default logger
-	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level:     logLevel,
-		AddSource: true,
-	})
-	logger := slog.New(logHandler)
-	slog.SetDefault(logger)
+	// Log buildVersion, buildDate, and buildCommit on startup
+	log.Printf("Build version: %s\n", buildVersion)
+	log.Printf("Build date: %s\n", buildDate)
+	log.Printf("Build commit: %s\n", buildCommit)
 
 	// Create a new background context.
 	ctx, cancelCtx := signal.NotifyContext(context.Background(), syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
