@@ -184,6 +184,22 @@ func (sr *PostgresRepository) GetByOriginalURL(ctx context.Context, originalURL 
 	return *url, nil
 }
 
+// GetServiceStats retrieves Service stats: URLs and users count.
+func (sr *PostgresRepository) GetServiceStats(ctx context.Context) (urlsCount int, usersCount int, err error) {
+	URLsAndUsersCountQuery := `
+	SELECT
+	COUNT(id),
+	COUNT(DISTINCT user_uuid)
+    FROM url;
+	`
+
+	err = sr.db.QueryRowContext(ctx, URLsAndUsersCountQuery).Scan(&urlsCount, &usersCount)
+	if err != nil {
+		return 0, 0, err
+	}
+	return urlsCount, usersCount, nil
+}
+
 // DeleteMany marks multiple URLs as deleted based on the provided delete requests.
 func (sr *PostgresRepository) DeleteMany(ctx context.Context, delReqs []DeleteRequest) error {
 	deleteURLsQuery := `

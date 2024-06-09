@@ -60,6 +60,12 @@ type UserURL struct {
 	OriginalURL string `json:"original_url"`
 }
 
+// ServiceStatsResponse represents the response payload for service stats.
+type ServiceStatsResponse struct {
+	URLsCount  int `json:"urls"`
+	UsersCount int `json:"users"`
+}
+
 // Function to generate a random slug for shortened URLs.
 func generateSlug() string {
 	b := make([]byte, slugLen)
@@ -96,6 +102,7 @@ func NewHandler(repo repository.IRepository, bgDeleter *deleter.BackgroundDelete
 	// Routes setup.
 	h.Router.Get("/{slug}", h.HandleExpandURL)
 	h.Router.Get("/api/user/urls", h.HandleGetUserURLs)
+	h.Router.Get("/api/internal/stats", h.HandleGetServiceStats)
 	h.Router.Get("/ping", h.HandleDatabasePing)
 	h.Router.Post("/", h.HandleShortenURL)
 	h.Router.Post("/api/shorten", h.HandleJSONShortenURL)
@@ -275,6 +282,25 @@ func (h *Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.respondWithJson(w, http.StatusOK, userURLs)
+}
+
+// Method to handle getting service stats.
+func (h *Handler) HandleGetServiceStats(w http.ResponseWriter, r *http.Request) {
+	userID, err := h.getUserIDFromCtx(r)
+	if errors.Is(err, ErrorMissingUserIDCtx) {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+	slog.Debug("service stats requested", slog.String("user", userID))
+
+	URLsCount, usersCount, err := h.repo.GetServiceStats(r.Context())
+	if err != nil {
+		slog.Error("stats request handling", slog.String("user", userID), slog.Any("error", err))
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	resp := ServiceStatsResponse{URLsCount: URLsCount, UsersCount: usersCount}
+	h.respondWithJson(w, http.StatusOK, resp)
 }
 
 // Method to handle database ping.

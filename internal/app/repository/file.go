@@ -108,6 +108,19 @@ func (fr *FileRepository) GetByOriginalURL(ctx context.Context, originalURL stri
 	return URL{}, ErrURLNotExsit
 }
 
+// GetServiceStats retrieves Service stats: URLs and users count.
+func (fr *FileRepository) GetServiceStats(ctx context.Context) (urlsCount int, usersCount int, err error) {
+	fr.mu.RLock()
+	defer fr.mu.RUnlock()
+
+	usersMap := make(map[string]bool)
+	for _, u := range fr.urls {
+		urlsCount++
+		usersMap[u.UserID] = true
+	}
+	return urlsCount, len(usersMap), nil
+}
+
 // DeleteMany marks multiple URLs as deleted based on the provided delete requests.
 func (fr *FileRepository) DeleteMany(ctx context.Context, delReqs []DeleteRequest) error {
 	fr.mu.RLock()
