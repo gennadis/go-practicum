@@ -328,3 +328,41 @@ func TestFileStore_GetSlugByOriginalURL_OriginalURLNotFound(t *testing.T) {
 		t.Errorf("Expected %v, got: %v", ErrURLNotExsit, err)
 	}
 }
+
+func TestFileStore_GetServiceStats(t *testing.T) {
+	tmpfile, err := os.CreateTemp("", "testfilestore")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+	tmpfile.Close()
+
+	store, err := NewFileRepository(tmpfile.Name())
+	if err != nil {
+		t.Fatalf("Error creating file store: %v", err)
+	}
+
+	urlOne := NewURL("key1", "https://example1.com", "user1", false)
+	urlTwo := NewURL("key2", "https://example2.com", "user2", false)
+	urlThree := NewURL("key3", "https://example3.com", "user1", false)
+	urls := []URL{*urlOne, *urlTwo, *urlThree}
+	for _, url := range urls {
+		if err := store.Add(context.Background(), url); err != nil {
+			t.Fatalf("Error adding URL: %v", err)
+		}
+	}
+
+	urlsCount, usersCount, err := store.GetServiceStats(context.Background())
+	if err != nil {
+		t.Fatalf("Error calling GetServiceStats: %v", err)
+	}
+
+	expectedURLsCount := 3
+	expectedUsersCount := 2
+	if urlsCount != expectedURLsCount {
+		t.Errorf("Expected %d URLs, got %d", expectedURLsCount, urlsCount)
+	}
+	if usersCount != expectedUsersCount {
+		t.Errorf("Expected %d users, got %d", expectedUsersCount, usersCount)
+	}
+}

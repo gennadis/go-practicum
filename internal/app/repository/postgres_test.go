@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -246,6 +248,43 @@ func TestPostgresRepository_DeleteMany(t *testing.T) {
 	err := repo.DeleteMany(context.Background(), delReqs)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}
+
+func TestPostgresRepository_GetServiceStats(t *testing.T) {
+	db, mock := setupMockDB(t)
+	defer db.Close()
+
+	repo := PostgresRepository{db: db}
+	ctx := context.Background()
+
+	expectedURLsCount := 5
+	expectedUsersCount := 3
+
+	rows := sqlmock.NewRows([]string{"urls_count", "users_count"}).
+		AddRow(expectedURLsCount, expectedUsersCount)
+
+	expectedQuery := "SELECT COUNT(id), COUNT(DISTINCT user_uuid) FROM url;"
+
+	mock.ExpectQuery(
+		regexp.QuoteMeta(strings.TrimSpace(expectedQuery)),
+	).WillReturnRows(rows)
+
+	urlsCount, usersCount, err := repo.GetServiceStats(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if urlsCount != expectedURLsCount {
+		t.Errorf("expected URLs count: %d, got: %d", expectedURLsCount, urlsCount)
+	}
+
+	if usersCount != expectedUsersCount {
+		t.Errorf("expected users count: %d, got: %d", expectedUsersCount, usersCount)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
