@@ -1,4 +1,3 @@
-// Package main is the entry point for the application.
 package main
 
 import (
@@ -15,7 +14,7 @@ import (
 	"github.com/gennadis/shorturl/internal/app/logger"
 )
 
-// Server gracefule shutdown timeout.
+// Server graceful shutdown timeout.
 const (
 	serverShutdownTimeout = time.Second * 5
 )
@@ -68,7 +67,7 @@ func main() {
 		wg.Wait()
 	}()
 
-	// Set up graceful shtdown
+	// Set up graceful shutdown
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -77,18 +76,28 @@ func main() {
 		shutdownTimeoutCtx, cancelShutdownTimeoutCtx := context.WithTimeout(context.Background(), serverShutdownTimeout)
 		defer cancelShutdownTimeoutCtx()
 		if err := srv.Shutdown(shutdownTimeoutCtx); err != nil {
-			slog.Info("server shutdown", "error", err)
+			slog.Error("server shutdown", slog.Any("error", err))
 		}
 	}()
 
 	// Start the HTTP server and listen for incoming requests.
+	var srvErr error
+
 	switch cfg.EnableHTTPS {
 	case true:
-		log.Fatal(srv.ListenAndServeTLS(
+		srvErr = srv.ListenAndServeTLS(
 			"internal/app/config/localhost.crt",
 			"internal/app/config/localhost.key",
-		))
+		)
 	default:
-		log.Fatal(srv.ListenAndServe())
+		srvErr = srv.ListenAndServe()
 	}
+
+	if srvErr != nil && srvErr != http.ErrServerClosed {
+		log.Fatalf("server error: %v", srvErr)
+	}
+
+	// Wait for all background tasks to finish before shutdown.
+	wg.Wait()
+	slog.Info("application shutdown completed")
 }
