@@ -13,6 +13,9 @@ import (
 // deleteChanBufferSize is the buffer size for the delete channel.
 const deleteChanBufferSize = 100
 
+// deleteTickerInterval is the interval for the ticker that triggers deletions.
+const deleteTickerInterval = time.Second * 5
+
 // BackgroundDeleter handles background deletion tasks.
 type BackgroundDeleter struct {
 	// repo is the repository interface for performing deletions.
@@ -37,7 +40,7 @@ func NewBackgroundDeleter(repo repository.IRepository) *BackgroundDeleter {
 // Run starts the background deletion process. It listens for delete requests and handles them at regular intervals.
 // It returns a WaitGroup that can be used to wait for the background process to finish.
 func (m *BackgroundDeleter) Run(ctx context.Context) *sync.WaitGroup {
-	ticker := time.NewTicker(time.Second * 5)
+	ticker := time.NewTicker(deleteTickerInterval)
 	deleteRequests := []repository.DeleteRequest{}
 	wg := &sync.WaitGroup{}
 
