@@ -15,7 +15,7 @@ import (
 // App represents the main application structure.
 // It contains the primary components required for the application to function.
 type App struct {
-	// Logger
+	// Logger is the application logger.
 	Logger *slog.Logger
 	// Repository is the data repository for storing URLs.
 	Repository repository.IRepository

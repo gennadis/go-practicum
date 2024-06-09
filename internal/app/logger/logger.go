@@ -24,7 +24,7 @@ func getLogLevel(level string) (slog.Level, error) {
 	}
 }
 
-// CreateLogger sets the logging level and configures the default logger.
+// CreateLogger creates application logger.
 func CreateLogger(level string) (*slog.Logger, error) {
 	logLevel, err := getLogLevel(level)
 	if err != nil {
