@@ -5,8 +5,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 
 	"github.com/gennadis/shorturl/internal/app/deleter"
 	"github.com/gennadis/shorturl/internal/app/middlewares"
@@ -16,7 +18,8 @@ import (
 func ExampleHandler_HandleShortenURL() {
 	repo := repository.NewMemoryRepository()
 	bgDeleter := deleter.NewBackgroundDeleter(repo)
-	handler := NewHandler(repo, bgDeleter, "http://localhost:8080")
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	handler := NewHandler(repo, bgDeleter, logger, "http://localhost:8080")
 
 	reqBody := bytes.NewBufferString("http://example.com")
 	req := httptest.NewRequest(http.MethodPost, "/", reqBody)
@@ -35,7 +38,8 @@ func ExampleHandler_HandleShortenURL() {
 func ExampleHandler_HandleExpandURL() {
 	repo := repository.NewMemoryRepository()
 	bgDeleter := deleter.NewBackgroundDeleter(repo)
-	handler := NewHandler(repo, bgDeleter, "http://localhost:8080")
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	handler := NewHandler(repo, bgDeleter, logger, "http://localhost:8080")
 
 	url := repository.NewURL("testslug", "http://example.com", "user1", false)
 	if err := repo.Add(context.Background(), *url); err != nil {

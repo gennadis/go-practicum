@@ -44,8 +44,8 @@ func NewApp(ctx context.Context, cfg config.Config) (*App, error) {
 	// Create a new background deleter associated with the repository.
 	backgroundDeleter := deleter.NewBackgroundDeleter(repo)
 
-	// Create a new HTTP request handler with the repository, background deleter, and configuration.
-	h := handlers.NewHandler(repo, backgroundDeleter, cfg.BaseURL)
+	// Create a new HTTP request handler with the repository, background deleter, applictaion logger and configuration.
+	h := handlers.NewHandler(repo, backgroundDeleter, appLogger, cfg.BaseURL)
 
 	// Return a new instance of the application with the initialized components.
 	return &App{

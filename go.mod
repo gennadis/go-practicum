@@ -1,6 +1,6 @@
 module github.com/gennadis/shorturl
 
-go 1.21.9
+go 1.22.4
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
@@ -10,6 +10,7 @@ require (
 	github.com/imdario/mergo v0.3.16
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
 	github.com/jackc/pgx/v5 v5.6.0
+	github.com/samber/slog-chi v1.11.0
 	github.com/stretchr/testify v1.9.0
 )
 
@@ -21,6 +22,8 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
+	go.opentelemetry.io/otel v1.19.0 // indirect
+	go.opentelemetry.io/otel/trace v1.19.0 // indirect
 	golang.org/x/crypto v0.24.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/text v0.16.0 // indirect

@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -59,7 +61,8 @@ func TestHandleShortenURL(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := repository.NewMemoryRepository()
 			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
-			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
+			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+			handler := NewHandler(memStorage, backgroundDeleter, logger, baseURL)
 
 			body := bytes.NewBufferString(tc.requestBody)
 			req, err := http.NewRequest("POST", "/", body)
@@ -130,7 +133,8 @@ func TestHandleJSONShortenURL(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := repository.NewMemoryRepository()
 			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
-			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
+			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+			handler := NewHandler(memStorage, backgroundDeleter, logger, baseURL)
 
 			body := bytes.NewBufferString(tc.requestBody)
 			req, err := http.NewRequest("POST", "/api/shorten", body)
@@ -182,7 +186,8 @@ func TestHandleExpandURL(t *testing.T) {
 				t.Fatalf("memstore write error")
 			}
 			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
-			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
+			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+			handler := NewHandler(memStorage, backgroundDeleter, logger, baseURL)
 
 			req, err := http.NewRequest("GET", "/"+tc.slug, nil)
 			assert.NoError(t, err)
@@ -226,7 +231,8 @@ func TestDefaultHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := repository.NewMemoryRepository()
 			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
-			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
+			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+			handler := NewHandler(memStorage, backgroundDeleter, logger, baseURL)
 
 			req, err := http.NewRequest(tc.method, "/", nil)
 			assert.NoError(t, err)
@@ -273,7 +279,8 @@ func TestHandleGetUserURLs(t *testing.T) {
 				}
 			}
 			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
-			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
+			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+			handler := NewHandler(memStorage, backgroundDeleter, logger, baseURL)
 
 			req, err := http.NewRequest("GET", "/api/user/urls", nil)
 			assert.NoError(t, err)
@@ -305,7 +312,8 @@ func TestHandleDatabasePing(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			backgroundDeleter := deleter.NewBackgroundDeleter(tc.storage)
-			handler := NewHandler(tc.storage, backgroundDeleter, baseURL)
+			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+			handler := NewHandler(tc.storage, backgroundDeleter, logger, baseURL)
 
 			req, err := http.NewRequest("GET", "/ping", nil)
 			assert.NoError(t, err)
@@ -349,7 +357,8 @@ func TestHandleBatchJSONShortenURL(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			memStorage := repository.NewMemoryRepository()
 			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
-			handler := NewHandler(memStorage, backgroundDeleter, baseURL)
+			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+			handler := NewHandler(memStorage, backgroundDeleter, logger, baseURL)
 
 			body := bytes.NewBufferString(tc.requestBody)
 			req, err := http.NewRequest("POST", "/api/batch-shorten", body)
@@ -368,7 +377,9 @@ func TestHandleBatchJSONShortenURL(t *testing.T) {
 func TestHandleShortenURL_URLAlreadyExists(t *testing.T) {
 	memStorage := repository.NewMemoryRepository()
 	backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
-	handler := NewHandler(memStorage, backgroundDeleter, baseURL)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	handler := NewHandler(memStorage, backgroundDeleter, logger, baseURL)
+
 	ctx := context.Background()
 
 	existingURL := "https://example.com"
@@ -394,7 +405,9 @@ func TestHandleShortenURL_URLAlreadyExists(t *testing.T) {
 func TestHandleJSONShortenURL_URLAlreadyExists(t *testing.T) {
 	memStorage := repository.NewMemoryRepository()
 	backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
-	handler := NewHandler(memStorage, backgroundDeleter, baseURL)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	handler := NewHandler(memStorage, backgroundDeleter, logger, baseURL)
+
 	ctx := context.Background()
 
 	existingURL := "https://example.com"

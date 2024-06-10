@@ -13,7 +13,7 @@ import (
 	"github.com/gennadis/shorturl/internal/app/middlewares"
 	"github.com/gennadis/shorturl/internal/app/repository"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	slogchi "github.com/samber/slog-chi"
 )
 
 // charset represents the characters used for generating slugs.
@@ -84,7 +84,7 @@ type Handler struct {
 }
 
 // NewHandler creates a new instance of the Handler.
-func NewHandler(repo repository.IRepository, bgDeleter *deleter.BackgroundDeleter, baseURL string) *Handler {
+func NewHandler(repo repository.IRepository, bgDeleter *deleter.BackgroundDeleter, logger *slog.Logger, baseURL string) *Handler {
 	h := Handler{
 		Router:            chi.NewRouter(),
 		repo:              repo,
@@ -94,7 +94,7 @@ func NewHandler(repo repository.IRepository, bgDeleter *deleter.BackgroundDelete
 
 	// Middleware setup.
 	h.Router.Use(
-		middleware.Logger,
+		slogchi.New(logger),
 		middlewares.CookieAuthMiddleware,
 		middlewares.GzipMiddleware,
 	)
