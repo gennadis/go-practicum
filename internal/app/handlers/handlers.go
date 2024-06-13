@@ -13,7 +13,7 @@ import (
 	"github.com/gennadis/shorturl/internal/app/middlewares"
 	"github.com/gennadis/shorturl/internal/app/repository"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	slogchi "github.com/samber/slog-chi"
 )
 
 // charset represents the characters used for generating slugs.
@@ -60,6 +60,12 @@ type UserURL struct {
 	OriginalURL string `json:"original_url"`
 }
 
+// ServiceStatsResponse represents the response payload for service stats.
+type ServiceStatsResponse struct {
+	URLsCount  int `json:"urls"`
+	UsersCount int `json:"users"`
+}
+
 // Function to generate a random slug for shortened URLs.
 func generateSlug() string {
 	b := make([]byte, slugLen)
@@ -78,7 +84,7 @@ type Handler struct {
 }
 
 // NewHandler creates a new instance of the Handler.
-func NewHandler(repo repository.IRepository, bgDeleter *deleter.BackgroundDeleter, baseURL string) *Handler {
+func NewHandler(repo repository.IRepository, bgDeleter *deleter.BackgroundDeleter, logger *slog.Logger, baseURL string) *Handler {
 	h := Handler{
 		Router:            chi.NewRouter(),
 		repo:              repo,
@@ -88,7 +94,7 @@ func NewHandler(repo repository.IRepository, bgDeleter *deleter.BackgroundDelete
 
 	// Middleware setup.
 	h.Router.Use(
-		middleware.Logger,
+		slogchi.New(logger),
 		middlewares.CookieAuthMiddleware,
 		middlewares.GzipMiddleware,
 	)
@@ -96,6 +102,7 @@ func NewHandler(repo repository.IRepository, bgDeleter *deleter.BackgroundDelete
 	// Routes setup.
 	h.Router.Get("/{slug}", h.HandleExpandURL)
 	h.Router.Get("/api/user/urls", h.HandleGetUserURLs)
+	h.Router.Get("/api/internal/stats", h.HandleGetServiceStats)
 	h.Router.Get("/ping", h.HandleDatabasePing)
 	h.Router.Post("/", h.HandleShortenURL)
 	h.Router.Post("/api/shorten", h.HandleJSONShortenURL)
@@ -275,6 +282,25 @@ func (h *Handler) HandleGetUserURLs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.respondWithJson(w, http.StatusOK, userURLs)
+}
+
+// Method to handle getting service stats.
+func (h *Handler) HandleGetServiceStats(w http.ResponseWriter, r *http.Request) {
+	userID, err := h.getUserIDFromCtx(r)
+	if errors.Is(err, ErrorMissingUserIDCtx) {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+	slog.Debug("service stats requested", slog.String("user", userID))
+
+	URLsCount, usersCount, err := h.repo.GetServiceStats(r.Context())
+	if err != nil {
+		slog.Error("stats request handling", slog.String("user", userID), slog.Any("error", err))
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	resp := ServiceStatsResponse{URLsCount: URLsCount, UsersCount: usersCount}
+	h.respondWithJson(w, http.StatusOK, resp)
 }
 
 // Method to handle database ping.

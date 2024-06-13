@@ -3,6 +3,8 @@ package logger
 import (
 	"log/slog"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetLogLevel(t *testing.T) {
@@ -53,4 +55,10 @@ func TestGetLogLevel(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestCreateLogger(t *testing.T) {
+	logger, err := CreateLogger("DEBUG")
+	assert.NotNil(t, logger)
+	assert.NoError(t, err)
 }

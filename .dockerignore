@@ -1,0 +1,32 @@
+# Configuration files
+.env
+*.env
+
+# Editor directories and files
+.vscode/
+
+# OS generated files
+.DS_Store
+
+# file storage
+local_storage.json
+
+# Test results
+*.out
+*.coverage
+
+# Docker files
+Dockerfile
+.dockerignore
+docker-compose.yaml
+
+# Git
+.git
+.gitignore
+.github
+
+# Docs
+*.md
+
+# Pprof
+.pprof

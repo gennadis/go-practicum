@@ -60,6 +60,8 @@ type IRepository interface {
 	GetByUser(ctx context.Context, userID string) ([]URL, error)
 	// GetByOriginalURL retrieves a URL by its original URL.
 	GetByOriginalURL(ctx context.Context, originalURL string) (URL, error)
+	// GetServiceStats retrieves Service stats: URLs and users count.
+	GetServiceStats(ctx context.Context) (urlsCount int, usersCount int, err error)
 	// DeleteMany marks multiple URLs as deleted.
 	DeleteMany(ctx context.Context, delReqs []DeleteRequest) error
 	// Ping checks the connection to the repository.

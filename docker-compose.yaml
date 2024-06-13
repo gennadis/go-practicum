@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres:latest
+    container_name: shorturl-postgres
+    env_file:
+      - .env.example
+    ports:
+      - "0.0.0.0:5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  app:
+    build: .
+    container_name: shorturl-server
+    env_file:
+      - .env.example
+    depends_on:
+      - db
+    ports:
+      - "0.0.0.0:8080:8080"
+
+volumes:
+  db_data:

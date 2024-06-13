@@ -11,7 +11,6 @@ import (
 
 	"github.com/gennadis/shorturl/internal/app"
 	"github.com/gennadis/shorturl/internal/app/config"
-	"github.com/gennadis/shorturl/internal/app/logger"
 )
 
 // Server graceful shutdown timeout.
@@ -35,14 +34,6 @@ func main() {
 	// Load configuration settings.
 	cfg := config.NewConfiguration()
 
-	// Set application Logger.
-	logger.SetLogger(cfg.LogLevel)
-
-	// Log buildVersion, buildDate, and buildCommit on startup
-	log.Printf("Build version: %s\n", buildVersion)
-	log.Printf("Build date: %s\n", buildDate)
-	log.Printf("Build commit: %s\n", buildCommit)
-
 	// Create a new background context.
 	ctx, cancelCtx := signal.NotifyContext(context.Background(), syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
 	defer cancelCtx()
@@ -52,6 +43,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("error creating app: %v", err)
 	}
+
+	// Log buildVersion, buildDate, and buildCommit on startup
+	log.Printf("Build version: %s\n", buildVersion)
+	log.Printf("Build date: %s\n", buildDate)
+	log.Printf("Build commit: %s\n", buildCommit)
 
 	// Start HTTP server
 	srv := &http.Server{

@@ -94,6 +94,19 @@ func (mr *MemoryRepository) GetByOriginalURL(ctx context.Context, originalURL st
 	return URL{}, ErrURLNotExsit
 }
 
+// GetServiceStats retrieves Service stats: URLs and users count.
+func (mr *MemoryRepository) GetServiceStats(ctx context.Context) (urlsCount int, usersCount int, err error) {
+	mr.mu.RLock()
+	defer mr.mu.RUnlock()
+
+	usersMap := make(map[string]bool)
+	for _, u := range mr.urls {
+		urlsCount++
+		usersMap[u.UserID] = true
+	}
+	return urlsCount, len(usersMap), nil
+}
+
 // DeleteMany marks multiple URLs as deleted based on the provided delete requests.
 func (mr *MemoryRepository) DeleteMany(ctx context.Context, delReqs []DeleteRequest) error {
 	mr.mu.RLock()

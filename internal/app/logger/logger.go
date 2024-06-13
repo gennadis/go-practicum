@@ -24,12 +24,12 @@ func getLogLevel(level string) (slog.Level, error) {
 	}
 }
 
-// SetLogger sets the logging level and configures the default logger.
-func SetLogger(level string) {
+// CreateLogger creates application logger.
+func CreateLogger(level string) (*slog.Logger, error) {
 	logLevel, err := getLogLevel(level)
 	if err != nil {
 		log.Printf("invalid log level: %v, defaulting to DEBUG", level)
-		logLevel = slog.LevelDebug
+		return nil, err
 	}
 
 	var logHandler slog.Handler
@@ -48,4 +48,6 @@ func SetLogger(level string) {
 
 	logger := slog.New(logHandler)
 	slog.SetDefault(logger)
+
+	return logger, nil
 }
