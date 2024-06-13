@@ -297,6 +297,57 @@ func TestHandleGetUserURLs(t *testing.T) {
 	}
 }
 
+func TestHandleGetServiceStats(t *testing.T) {
+	ctx := context.Background()
+	testCases := []struct {
+		name               string
+		userID             string
+		dataExists         bool
+		expectedStatusCode int
+		expectedBody       string
+	}{
+		{
+			name:               "Empty Service Stats",
+			userID:             userID,
+			dataExists:         false,
+			expectedStatusCode: 200,
+			expectedBody:       `{"urls":0,"users":0}`,
+		},
+		{
+			name:               "Existing Service Stats",
+			userID:             userID,
+			dataExists:         true,
+			expectedStatusCode: 200,
+			expectedBody:       `{"urls":1,"users":1}`,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			memStorage := repository.NewMemoryRepository()
+			if tc.dataExists {
+				url := repository.NewURL("abc123", "https://example.com", userID, false)
+				if err := memStorage.Add(ctx, *url); err != nil {
+					t.Fatalf("memstore write error")
+				}
+			}
+			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
+			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+			handler := NewHandler(memStorage, backgroundDeleter, logger, baseURL)
+
+			req, err := http.NewRequest("GET", "/api/internal/stats", nil)
+			assert.NoError(t, err)
+
+			recorder := httptest.NewRecorder()
+			ctx := context.WithValue(req.Context(), middlewares.UserIDContextKey, userID)
+			handler.HandleGetServiceStats(recorder, req.WithContext(ctx))
+
+			assert.Equal(t, tc.expectedStatusCode, recorder.Result().StatusCode)
+			assert.Equal(t, tc.expectedBody, recorder.Body.String())
+
+		})
+	}
+}
+
 func TestHandleDatabasePing(t *testing.T) {
 	testCases := []struct {
 		name           string
@@ -436,4 +487,55 @@ func TestHandleJSONShortenURL_URLAlreadyExists(t *testing.T) {
 	err = json.Unmarshal(recorder.Body.Bytes(), &response)
 	assert.NoError(t, err)
 	assert.Equal(t, baseURL+"/"+existingSlug, response.Result)
+}
+
+func TestHandleDeleteUserURLs(t *testing.T) {
+	ctx := context.Background()
+	testCases := []struct {
+		name           string
+		requestBody    string
+		expectedStatus int
+	}{
+		{
+			name:           "Valid Request",
+			requestBody:    `["12345", "23456"]`,
+			expectedStatus: http.StatusAccepted,
+		},
+		{
+			name:           "Valid Empty Request",
+			requestBody:    `[]`,
+			expectedStatus: http.StatusAccepted,
+		},
+		{
+			name:           "Invalid Request",
+			requestBody:    ``,
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			memStorage := repository.NewMemoryRepository()
+			backgroundDeleter := deleter.NewBackgroundDeleter(memStorage)
+			logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+			handler := NewHandler(memStorage, backgroundDeleter, logger, baseURL)
+
+			existingURL := "https://example.com"
+			existingSlug := "existingSlug"
+			url := repository.NewURL(existingSlug, existingURL, userID, false)
+
+			if err := memStorage.Add(ctx, *url); err != nil {
+				t.Fatalf("memstore write error")
+			}
+
+			body := bytes.NewBufferString(tc.requestBody)
+			req, err := http.NewRequest("DELETE", "/api/user/urls", body)
+			assert.NoError(t, err)
+
+			recorder := httptest.NewRecorder()
+			ctx := context.WithValue(req.Context(), middlewares.UserIDContextKey, userID)
+			handler.HandleDeleteUserURLs(recorder, req.WithContext(ctx))
+
+			assert.Equal(t, tc.expectedStatus, recorder.Code)
+		})
+	}
 }
