@@ -366,3 +366,28 @@ func TestFileStore_GetServiceStats(t *testing.T) {
 		t.Errorf("Expected %d users, got %d", expectedUsersCount, usersCount)
 	}
 }
+
+func TestFileStore_DeleteMant(t *testing.T) {
+	tmpfile, err := os.CreateTemp("", "testfilestore")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpfile.Name())
+	tmpfile.Close()
+
+	store, err := NewFileRepository(tmpfile.Name())
+	if err != nil {
+		t.Fatalf("Error creating file store: %v", err)
+	}
+
+	ctx := context.Background()
+
+	URL := NewURL("key", "https://example.com", "userID", false)
+	if err := store.Add(ctx, *URL); err != nil {
+		t.Fatalf("Error adding initial URL: %v", err)
+	}
+
+	if err := store.DeleteMany(ctx, []DeleteRequest{{Slug: URL.Slug, UserID: URL.UserID}}); err != nil {
+		t.Errorf("Error deleting URL: %v", err)
+	}
+}

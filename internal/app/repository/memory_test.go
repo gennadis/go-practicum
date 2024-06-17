@@ -265,3 +265,18 @@ func TestMemStore_GetServiceStats(t *testing.T) {
 		t.Errorf("Expected %d users, got %d", expectedUsersCount, usersCount)
 	}
 }
+
+func TestMemStore_DeleteMant(t *testing.T) {
+	store := NewMemoryRepository()
+	ctx := context.Background()
+
+	URL := NewURL("key", "https://example.com", "userID", false)
+	err := store.Add(ctx, *URL)
+	if err != nil {
+		t.Fatalf("Error adding initial URL: %v", err)
+	}
+
+	if err := store.DeleteMany(ctx, []DeleteRequest{{Slug: URL.Slug, UserID: URL.UserID}}); err != nil {
+		t.Errorf("Error deleting URL: %v", err)
+	}
+}
